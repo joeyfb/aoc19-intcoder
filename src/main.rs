@@ -7,6 +7,8 @@ fn read(filename: &str) -> Result<Vec<i64>,std::io::Error> {
     let mut file = File::open(filename)?;
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
+
+    contents = contents.trim().to_string();
     
     Ok(contents.split(',').map( |x| {
         match x.parse() {

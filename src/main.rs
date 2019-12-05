@@ -19,25 +19,8 @@ fn read(filename: &str) -> Result<Vec<i64>,std::io::Error> {
 fn main() -> io::Result<()> {
     let prog = read("program.txt")?;
 
-    let mut i = 0;
-    while i < 100 {
-        let mut j = 0;
-
-        while j < 100 {
-            let mut icoder = intcoder::Intcode::new(&prog, i, j);
-            let answer = icoder.run();
-
-            if answer == 19690720 {
-                println!("got: {}", answer);
-                println!("nums: {}, {}", i, j);
-                println!("answer: {}", (100 * i) + j);
-            }
-
-            j += 1;
-        }
-
-        i += 1;
-    }
+    let mut icoder = intcoder::Intcode::new(&prog);
+    let answer = icoder.run();
 
     Ok(())
 }

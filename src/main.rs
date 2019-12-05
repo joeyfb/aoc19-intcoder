@@ -20,7 +20,9 @@ fn main() -> io::Result<()> {
     let prog = read("program.txt")?;
 
     let mut icoder = intcoder::Intcode::new(&prog);
-    let answer = icoder.run();
+    let answer = icoder.run(5);
+
+    println!("answer: {}", answer);
 
     Ok(())
 }

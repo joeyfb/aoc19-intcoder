@@ -28,3 +28,16 @@ fn main() -> io::Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_read() -> io::Result<()> {
+        let prog = read("123.txt")?;
+        assert_eq!(prog, vec!(1,2,3));
+
+        Ok(())
+    }
+}

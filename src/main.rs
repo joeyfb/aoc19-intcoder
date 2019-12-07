@@ -3,6 +3,7 @@ use std::io::{self, prelude::*};
 use permutohedron::LexicalPermutation;
 
 mod intcoder;
+mod multicoder;
 
 fn read(filename: &str) -> Result<Vec<i64>,std::io::Error> {
     let mut file = File::open(filename)?;
@@ -28,28 +29,9 @@ fn main() -> io::Result<()> {
     loop {
         // permutohedron has to_vec generate next permutation
         let phase = phase_settings.to_vec();
-        let mut computers = Vec::new();
-
-        for i in 0..num_computers {
-            computers.push(intcoder::Intcode::new(&prog));
-            computers[i].run(phase[i]);
-        }
-
-        let mut answer = 0;
-        let mut isgo = 1;
-        while isgo >= 0 {
-
-            for comp in &mut computers {
-                isgo = comp.run(answer);
-
-                if isgo > 0 {
-                    answer = isgo;
-                } else {
-                    break;
-                }
-            }
-
-        }
+        
+        let mut mcoder = multicoder::MultiCoder::new(&prog, &phase);
+        let answer = mcoder.run();
 
         answers.push(answer);
 

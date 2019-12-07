@@ -21,18 +21,18 @@ fn read(filename: &str) -> Result<Vec<i64>,std::io::Error> {
 
 fn main() -> io::Result<()> {
     let prog = read("program.txt")?;
-    let mut start_vals = vec!(5,6,7,8,9);
+    let mut phase_settings = vec!(5,6,7,8,9);
     let mut answers = Vec::new();
-    let NUM_COMPUTERS = start_vals.len();
+    let num_computers = phase_settings.len();
 
     loop {
         // permutohedron has to_vec generate next permutation
-        let vals = start_vals.to_vec();
+        let phase = phase_settings.to_vec();
         let mut computers = Vec::new();
 
-        for i in 0..NUM_COMPUTERS {
+        for i in 0..num_computers {
             computers.push(intcoder::Intcode::new(&prog));
-            computers[i].run(vals[i]);
+            computers[i].run(phase[i]);
         }
 
         let mut answer = 0;
@@ -54,15 +54,14 @@ fn main() -> io::Result<()> {
         answers.push(answer);
 
         // ask for next permutation
-        if !start_vals.next_permutation() {
+        if !phase_settings.next_permutation() {
             break;
         }
     }
 
     answers.sort();
 
-    println!("{:?}", answers);
-    println!("{:?}", answers.len());
+    println!("MAXIMUM THRUST: {:?}", answers[answers.len() - 1]);
 
     Ok(())
 }

@@ -72,6 +72,7 @@ impl Intcode {
                     halt = true;
                     result = -1;
                 },
+
                 _   => {
                     println!("error! {}: {}", self.pos, code);
                     break;
@@ -82,7 +83,7 @@ impl Intcode {
         result
     }
 
-    fn decode(&mut self, instruction: i64) ->  (i64, bool, bool, bool) {
+    fn decode(&self, instruction: i64) ->  (i64, bool, bool, bool) {
         let code = instruction % 100;
         let mut mode = instruction / 100;
         let mut third_mode = true;
@@ -110,7 +111,7 @@ impl Intcode {
         }
     }
 
-    fn jmp(&mut self, code: i64, left : i64, right: i64) -> usize {
+    fn jmp(&self, code: i64, left : i64, right: i64) -> usize {
         let mut dest = self.pos;
         let jump = match code {
             5 => left != 0,
@@ -125,7 +126,7 @@ impl Intcode {
         dest
     }
 
-    fn arithmetic(&mut self, code: i64, val1 : i64, val2 : i64) -> i64 {
+    fn arithmetic(&self, code: i64, val1 : i64, val2 : i64) -> i64 {
         match code {
             1 => val1 + val2,
             2 => val1 * val2,

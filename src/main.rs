@@ -30,8 +30,13 @@ fn main() -> io::Result<()> {
         // permutohedron has to_vec generate next permutation
         let phase = phase_settings.to_vec();
         
-        let mut mcoder = multicoder::MultiCoder::new(&prog, &phase);
-        let answer = mcoder.run();
+        let mut mcoder = multicoder::MultiCoder::new(&prog, num_computers);
+
+        for p in phase {
+            mcoder.manual(p);
+        }
+
+        let answer = mcoder.feedback();
 
         answers.push(answer);
 

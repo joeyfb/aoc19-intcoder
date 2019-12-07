@@ -1,26 +1,33 @@
 use crate::intcoder::Intcode;
 
 pub struct MultiCoder {
-    computers : Vec<Intcode>
+    computers : Vec<Intcode>,
+    active: usize
 }
 
 impl MultiCoder {
 
-    pub fn new(prog: &Vec<i64>, phase: &Vec<i64>) -> MultiCoder {
+    pub fn new(prog: &Vec<i64>, size: usize) -> MultiCoder {
         let mut computers = Vec::new();
-        let num_computers = phase.len();
 
-        for i in 0..num_computers {
+        for _i in 0..size {
             computers.push(Intcode::new(&prog));
-            computers[i].run(phase[i]);
         }
 
         MultiCoder {
-            computers: computers
+            computers: computers,
+            active: 0
         }
     }
 
-    pub fn run(&mut self) -> i64 {
+    pub fn manual(&mut self, input: i64) -> i64 {
+        let answer = self.computers[self.active].run(input);
+        self.active = (self.active + 1) % self.computers.len();
+
+        answer
+    }
+
+    pub fn feedback(&mut self) -> i64 {
         let mut answer = 0;
         let mut isgo = 1;
 
@@ -52,9 +59,13 @@ mod tests {
         let prog = vec!(3,26,1001,26,-4,26,3,27,1002,27,2,27,1,27,26,27,
                         4,27,1001,28,-1,28,1005,28,6,99,0,0,5);
         let phase = vec!(9,8,7,6,5);
+        let mut mcoder = MultiCoder::new(&prog, phase.len());
 
-        let mut mcoder = MultiCoder::new(&prog, &phase);
-        let answer = mcoder.run();
+        for p in phase {
+            mcoder.manual(p);
+        }
+
+        let answer = mcoder.feedback();
         assert_eq!(answer, 139629729);
     }
 
@@ -64,9 +75,13 @@ mod tests {
                         -5,54,1105,1,12,1,53,54,53,1008,54,0,55,1001,55,1,55,2,53,55,53,4,
                         53,1001,56,-1,56,1005,56,6,99,0,0,0,0,10);
         let phase = vec!(9,7,8,5,6);
+        let mut mcoder = MultiCoder::new(&prog, phase.len());
 
-        let mut mcoder = MultiCoder::new(&prog, &phase);
-        let answer = mcoder.run();
+        for p in phase {
+            mcoder.manual(p);
+        }
+
+        let answer = mcoder.feedback();
         assert_eq!(answer, 18216);
     }
 }

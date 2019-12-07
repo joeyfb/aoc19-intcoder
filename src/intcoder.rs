@@ -2,9 +2,11 @@ pub struct Intcode {
     prog: Vec<i64>,
     pos: usize,
     halt: bool,
-    input: i64,
     result: i64,
+    input: Vec<i64>,
+    input_index: i64,
 }
+
 
 impl Intcode {
 
@@ -15,24 +17,25 @@ impl Intcode {
             prog: prog,
             pos: 0,
             halt: false,
-            input: 0,
-            result: 0
+            input: vec!(),
+            result: 0,
+            input_index: 0
         }
     }
 
-    pub fn run(&mut self, input: i64) -> i64 {
-        let stop = self.prog.len();
-        self.input = input;
+    pub fn run(&mut self, input: &Vec<i64>) -> i64 {
+        self.input = input.to_vec();
+        self.input_index = 0;
 
-        while self.pos < stop {
+        loop {
             if self.halt {
                 break;
             }
 
             let mut code = self.prog[self.pos];
-            let mut a : i64 = 0;
-            let mut b : i64 = 0;
-            let mut c : i64 = 0;
+            let mut third_imm : bool = true;
+            let mut second_imm : bool = true;
+            let mut first_imm : bool = true;
             self.pos += 1;
 
             if code > 99 {
@@ -40,79 +43,53 @@ impl Intcode {
                 code = code % 100;
                 rem = rem / 100;
 
-                c = rem % 10;
+                first_imm = (rem % 10) != 1;
                 rem = rem / 10;
-                b = rem % 10;
+                second_imm = (rem % 10) != 1;
                 rem = rem / 10;
-                a = rem % 10;
+                third_imm = (rem % 10) != 1;
             }
 
-            println!("{}: {}", self.pos, code);
+            //println!("{}: {}", self.pos, code);
             //println!("{:?}", self.prog);
 
             match code {
                 // tertiary
                 1|2|7|8 => {
-                    let left = self.prog[self.pos];
+                    let first = self.get_arg(first_imm);
+                    let second = self.get_arg(second_imm);
+                    let mut store = self.pos;
                     self.pos += 1;
-                    let right = self.prog[self.pos];
-                    self.pos += 1;
-                    let mut store = self.pos as i64;
-                    self.pos += 1;
-                    let val1 : i64;
-                    let val2 : i64;
 
-                    if c != 1 {
-                        val1 = self.prog[left as usize];
-                    } else {
-                        val1 = left;
+                    if third_imm {
+                        store = self.prog[store] as usize;
                     }
 
-                    if b != 1 {
-                        val2 = self.prog[right as usize];
-                    } else {
-                        val2 = right;
-                    }
-
-                    if a != 1 {
-                        store = self.prog[store as usize];
-                    }
-
-                    self.prog[store as usize] = self.tertOp(code, val1, val2);
+                    self.prog[store] = self.tert_op(code, first, second);
                 },
                 // unary
                 3 => {
-                    let mut first = self.prog[self.pos];
-                    self.pos += 1;
+                    if self.input.len() <= self.input_index as usize { 
+                        self.pos -= 1;
+                        return -1;
+                    };
+                    let first = self.get_arg(false);
 
-                    self.unOp(code, first);
+                    self.un_op(code, first);
                 },
                 4 => {
-                    let mut first = self.prog[self.pos];
-                    self.pos += 1;
+                    let first = self.get_arg(first_imm);
 
-                    if c != 1 {
-                        first = self.prog[first as usize];
-                    }
+                    self.un_op(code, first);
 
-                    self.unOp(code, first);
+                    return self.result;
                 },
                 //binary
                 5|6 => {
-                    let mut left = self.prog[self.pos];
-                    self.pos += 1;
-                    let mut right = self.prog[self.pos];
-                    self.pos += 1;
+                    let first = self.get_arg(first_imm);
+                    let second = self.get_arg(second_imm);
 
-                    if c != 1 {
-                        left = self.prog[left as usize];
-                    }
-
-                    if b != 1 {
-                        right = self.prog[right as usize];
-                    }
-
-                    self.binOp(code, left, right);
+                    self.bin_op(code, first, second);
                 },
                 99 => break,
                 _   => {
@@ -122,10 +99,21 @@ impl Intcode {
             };
         }
 
-        self.result
+        -2
     }
 
-    fn binOp(&mut self, code: i64, left : i64, right: i64) {
+    fn get_arg(&mut self, is_pos: bool) -> i64 {
+        let mut arg = self.prog[self.pos];
+        self.pos += 1;
+
+        if is_pos {
+            arg = self.prog[arg as usize];
+        }
+        
+        arg
+    }
+
+    fn bin_op(&mut self, code: i64, left : i64, right: i64) {
         match code {
             5 => {
                 if left != 0 {
@@ -141,22 +129,23 @@ impl Intcode {
         };
     }
 
-    fn unOp(&mut self, code: i64, first: i64) {
+    fn un_op(&mut self, code: i64, first: i64) {
         match code {
             3 => {
-                println!("!!! SETTING {} at {} !!!!", self.input, first);
-                self.prog[first as usize] = self.input;
+                //println!("!!! SETTING {} at {} !!!!", self.input[self.input_index as usize], first);
+                self.prog[first as usize] = self.input[self.input_index as usize];
+                self.input_index += 1;
             }
             4 => {
                 self.result = first;
-                println!("> {} from {}", first, self.pos);
+                //println!("> {} from {}", first, self.pos);
             },
             _ => {}
         };
     }
 
 
-    fn tertOp(&mut self, code: i64, val1 : i64, val2 : i64) -> i64 {
+    fn tert_op(&mut self, code: i64, val1 : i64, val2 : i64) -> i64 {
         match code {
             1 => val1 + val2,
             2 => val1 * val2,

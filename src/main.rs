@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::{self, prelude::*};
+use permutohedron::LexicalPermutation;
 
 mod intcoder;
 
@@ -20,11 +21,50 @@ fn read(filename: &str) -> Result<Vec<i64>,std::io::Error> {
 
 fn main() -> io::Result<()> {
     let prog = read("program.txt")?;
+    let mut start_vals = vec!(5,6,7,8,9);
+    let mut answers = Vec::new();
 
-    let mut icoder = intcoder::Intcode::new(&prog);
-    let answer = icoder.run(5);
+    loop {
+        let vals = start_vals.to_vec();
+        let mut computers = Vec::new();
 
-    println!("answer: {}", answer);
+        for _i in 0..5 {
+            computers.push(intcoder::Intcode::new(&prog));
+        }
+
+        for i in 0..5 {
+            let inputs = vec!(vals[i]);
+            computers[i].run(&inputs);
+        }
+
+        let mut answer = 0;
+        let mut isgo = 1;
+        while isgo > 0 {
+            for i in 0..5 {
+                let inputs = vec!(answer);
+                isgo = computers[i].run(&inputs);
+
+                if isgo > 0 {
+                    answer = isgo;
+                } else {
+                    break;
+                }
+            }
+        }
+
+        answers.push(answer);
+
+        println!("{}", answer);
+
+        if !start_vals.next_permutation() {
+            break;
+        }
+    }
+
+    answers.sort();
+
+    println!("{:?}", answers);
+    println!("{:?}", answers.len());
 
     Ok(())
 }

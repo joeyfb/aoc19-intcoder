@@ -29,7 +29,7 @@ fn main() -> io::Result<()> {
         let mut computers = Vec::new();
 
         for _i in 0..5 {
-            computers.push(intcoder::Intcode::new(&prog));
+            computers.push(intcoder::Intcode::new(&prog, false));
         }
 
         for i in 0..5 {
@@ -40,9 +40,9 @@ fn main() -> io::Result<()> {
         let mut answer = 0;
         let mut isgo = 1;
         while isgo > 0 {
-            for i in 0..5 {
+            for comp in &mut computers {
                 let inputs = vec!(answer);
-                isgo = computers[i].run(&inputs);
+                isgo = comp.run(&inputs);
 
                 if isgo > 0 {
                     answer = isgo;

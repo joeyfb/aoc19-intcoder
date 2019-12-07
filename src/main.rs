@@ -23,26 +23,24 @@ fn main() -> io::Result<()> {
     let prog = read("program.txt")?;
     let mut start_vals = vec!(5,6,7,8,9);
     let mut answers = Vec::new();
+    let NUM_COMPUTERS = start_vals.len();
 
     loop {
+        // permutohedron has to_vec generate next permutation
         let vals = start_vals.to_vec();
         let mut computers = Vec::new();
 
-        for _i in 0..5 {
-            computers.push(intcoder::Intcode::new(&prog, false));
-        }
-
-        for i in 0..5 {
-            let inputs = vec!(vals[i]);
-            computers[i].run(&inputs);
+        for i in 0..NUM_COMPUTERS {
+            computers.push(intcoder::Intcode::new(&prog));
+            computers[i].run(vals[i]);
         }
 
         let mut answer = 0;
         let mut isgo = 1;
-        while isgo > 0 {
+        while isgo >= 0 {
+
             for comp in &mut computers {
-                let inputs = vec!(answer);
-                isgo = comp.run(&inputs);
+                isgo = comp.run(answer);
 
                 if isgo > 0 {
                     answer = isgo;
@@ -50,12 +48,12 @@ fn main() -> io::Result<()> {
                     break;
                 }
             }
+
         }
 
         answers.push(answer);
 
-        println!("{}", answer);
-
+        // ask for next permutation
         if !start_vals.next_permutation() {
             break;
         }

@@ -21,33 +21,22 @@ impl Intcode {
         let mut result = 0;
 
         while ! halt {
-            let code = self.prog[self.pos] % 100;
-            let mut mode = self.prog[self.pos] / 100;
-            let mut third_imm : bool = true;
-            let mut second_imm : bool = true;
-            let mut first_imm : bool = true;
-            self.pos += 1;
-
-            if mode > 0 {
-                first_imm = (mode % 10) != 1;
-                mode = mode / 10;
-                second_imm = (mode % 10) != 1;
-                mode = mode / 10;
-                third_imm = (mode % 10) != 1;
-            }
+            let instruction = self.fetch(false);
+            let (code, first_mode, second_mode, third_mode) = self.decode(instruction);
 
             //println!("{}: {}", self.pos, code);
             //println!("{:?}", self.prog);
 
             match code {
+
                 // ARITHMETIC
                 1|2|7|8 => {
-                    let first = self.get_arg(first_imm);
-                    let second = self.get_arg(second_imm);
+                    let first = self.fetch(first_mode);
+                    let second = self.fetch(second_mode);
                     let mut store = self.pos;
                     self.pos += 1;
 
-                    if third_imm {
+                    if third_mode {
                         store = self.prog[store] as usize;
                     }
 
@@ -61,22 +50,22 @@ impl Intcode {
                         halt = true;
                         result = 0;
                     } else {
-                        let first = self.get_arg(false);
+                        let first = self.fetch(false);
                         self.prog[first as usize] = input;
                         input_spent = true;
                     }
                 },
                 4 => {
                     halt = true;
-                    result = self.get_arg(first_imm);
+                    result = self.fetch(first_mode);
                 },
 
                 // JUMP
                 5|6 => {
-                    let first = self.get_arg(first_imm);
-                    let second = self.get_arg(second_imm);
+                    let first = self.fetch(first_mode);
+                    let second = self.fetch(second_mode);
 
-                    self.jmp(code, first, second);
+                    self.pos = self.jmp(code, first, second);
                 },
 
                 99 => {
@@ -93,31 +82,47 @@ impl Intcode {
         result
     }
 
-    fn get_arg(&mut self, is_pos: bool) -> i64 {
-        let mut arg = self.prog[self.pos];
-        self.pos += 1;
+    fn decode(&mut self, instruction: i64) ->  (i64, bool, bool, bool) {
+        let code = instruction % 100;
+        let mut mode = instruction / 100;
+        let mut third_mode = true;
+        let mut second_mode = true;
+        let mut first_mode = true;
 
-        if is_pos {
-            arg = self.prog[arg as usize];
+        if mode > 0 {
+            first_mode = (mode % 10) != 1;
+            mode = mode / 10;
+            second_mode = (mode % 10) != 1;
+            mode = mode / 10;
+            third_mode = (mode % 10) != 1;
         }
-        
-        arg
+
+        (code, first_mode, second_mode, third_mode)
     }
 
-    fn jmp(&mut self, code: i64, left : i64, right: i64) {
-        match code {
-            5 => {
-                if left != 0 {
-                    self.pos = right as usize
-                }
-            }
-            6 => {
-                if left == 0 {
-                    self.pos = right as usize
-                }
-            },
-            _ => {}
+    fn fetch(&mut self, is_pos: bool) -> i64 {
+        let arg = self.prog[self.pos];
+        self.pos += 1;
+
+        match is_pos {
+            true => self.prog[arg as usize],
+            false => arg
+        }
+    }
+
+    fn jmp(&mut self, code: i64, left : i64, right: i64) -> usize {
+        let mut dest = self.pos;
+        let jump = match code {
+            5 => left != 0,
+            6 => left == 0,
+            _ => false
         };
+
+        if jump {
+            dest = right as usize;
+        }
+
+        dest
     }
 
     fn arithmetic(&mut self, code: i64, val1 : i64, val2 : i64) -> i64 {

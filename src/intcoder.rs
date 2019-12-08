@@ -3,6 +3,7 @@ pub struct Intcode {
     pos: usize
 }
 
+#[derive(Debug)]
 pub enum IntResponse {
     Halt,
     Input,

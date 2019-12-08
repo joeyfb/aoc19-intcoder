@@ -1,9 +1,11 @@
 use crate::intcoder::{Intcode, IntResponse};
 use std::thread;
-use std::sync::mpsc;
+use std::sync::mpsc::{channel, Sender, Receiver};
 
 pub struct MultiCoder {
-    computers : Vec<Intcode>,
+    senders : Vec<Sender<i64>>,
+    receivers : Vec<Receiver<i64>>,
+    computers : Vec<bool>,
     active: usize
 }
 
@@ -11,62 +13,65 @@ impl MultiCoder {
 
     pub fn new(prog: &Vec<i64>, size: usize) -> MultiCoder {
         let mut computers = Vec::new();
+        let mut senders = Vec::new();
+        let mut receivers = Vec::new();
 
-        /*
-         * TODO
-         * Rewrite using senders/receivers, perhaps a function
-         * to send a message to a specific computer, and another
-         * that receives them. We could setup a specific default 
-         * value like 0 always goes to 1, then adapt it later...
-         *
-         * IDEA:
-         * Rewrite Intcoder run to return RESPONSE
-         * { type: Output/Input/Halt, value: (only for output) }
-         */
+        for i in 0..size {
+            let mut computer = Intcode::new(&prog);
+            let (mut from_tx, mut from_rx) = channel();
+            let (mut to_tx, mut to_rx) = channel();
+            computers.push(true);
 
-        for _i in 0..size {
-            computers.push(Intcode::new(&prog));
+            thread::spawn(move || {
+                let index = i;
+                let mut final_answer = -1;
+
+                for received in to_rx {
+                    let response = computer.run(received);
+                    let answer = match response {
+                        IntResponse::Output(i) => {
+                            final_answer = i;
+                            from_tx.send(i).unwrap();
+                        },
+                        IntResponse::Input => {
+                            from_tx.send(0).unwrap();
+                        },
+                        IntResponse::Halt => {
+                            break;
+                        }
+                    };
+                }
+            });
+
+            senders.push(to_tx);
+            receivers.push(from_rx);
         }
 
         MultiCoder {
             computers: computers,
+            senders: senders,
+            receivers: receivers,
             active: 0
         }
     }
 
-    pub fn manual(&mut self, input: i64) -> i64 {
-        let response = self.computers[self.active].run(input);
-        let answer = match response {
-            IntResponse::Output(i) => i,
-            _ => -1
-        };
-        self.active = (self.active + 1) % self.computers.len();
+    pub fn send(&mut self, comp: usize, input: i64) -> i64 {
+        self.senders[comp].send(input).unwrap();
 
-        answer
+        self.output(comp)
     }
 
-    pub fn feedback(&mut self) -> i64 {
-        let mut answer = 0;
-        let mut isgo = true;
-
-        while isgo {
-
-            for comp in &mut self.computers {
-
-                match comp.run(answer) {
-                    IntResponse::Output(i) => {
-                        answer = i;
-                    },
-                    IntResponse::Halt => {
-                        isgo = false;
-                    },
-                    IntResponse::Input => {}
-                }
-
-            }
+    pub fn connect(&mut self, from: usize, to: usize) {
+        for input in &self.receivers[from] {
+            self.senders[to].send(input);
         }
+    }
 
-        answer
+    pub fn output(&mut self, comp: usize) -> i64 {
+        match self.receivers[comp].recv() {
+            Ok(i) => i,
+            _ => -1
+        }
     }
 
 }
@@ -83,15 +88,22 @@ mod tests {
         let size = phase.len();
         let mut mcoder = MultiCoder::new(&prog, size);
 
-        for p in phase {
-            mcoder.manual(p);
+        for (i, p) in phase.iter().enumerate() {
+            println!("HELLO {}", mcoder.send(i, *p));
         }
 
-        let answer = mcoder.feedback();
+        let mut answer = 0;
+        for i in 0..size {
+            let tmp = mcoder.send(i, answer);
+
+            if tmp > 0 {
+                answer = tmp;
+            }
+        }
 
         assert_eq!(answer, 43210);
     }
-
+/*
     #[test]
     fn test_normal2() {
         let prog = vec!(3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,
@@ -140,4 +152,5 @@ mod tests {
         let answer = mcoder.feedback();
         assert_eq!(answer, 18216);
     }
+    */
 }

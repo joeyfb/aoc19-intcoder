@@ -19,7 +19,12 @@ fn read(filename: &str) -> Result<Vec<i64>,std::io::Error> {
         }
     }).collect())
 }
+fn main() -> io::Result<()> {
+    let prog = read("program.txt")?;
 
+    Ok(())
+}
+/*
 fn main() -> io::Result<()> {
     let prog = read("program.txt")?;
     
@@ -107,3 +112,4 @@ mod tests {
         Ok(())
     }
 }
+*/

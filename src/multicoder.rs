@@ -4,28 +4,21 @@ use std::sync::mpsc::{channel, Sender, Receiver};
 
 pub struct MultiCoder {
     senders : Vec<Sender<IntResponse>>,
-    receivers : Vec<Receiver<IntResponse>>,
-    computers : Vec<bool>,
-    active: usize
+    receivers : Vec<Receiver<IntResponse>>
 }
 
 impl MultiCoder {
 
     pub fn new(prog: &Vec<i64>, size: usize) -> MultiCoder {
-        let mut computers = Vec::new();
         let mut senders = Vec::new();
         let mut receivers = Vec::new();
 
-        for i in 0..size {
+        for _i in 0..size {
             let mut computer = Intcode::new(&prog);
-            let (mut from_tx, mut from_rx) = channel();
-            let (mut to_tx, mut to_rx) = channel();
-            computers.push(true);
+            let (from_tx, from_rx) = channel();
+            let (to_tx, to_rx) = channel();
 
             thread::spawn(move || {
-                let index = i;
-                let mut final_answer = -1;
-
                 for received in to_rx {
                     match received {
                         IntResponse::Output(i) => {
@@ -46,10 +39,8 @@ impl MultiCoder {
         }
 
         MultiCoder {
-            computers: computers,
             senders: senders,
-            receivers: receivers,
-            active: 0
+            receivers: receivers
         }
     }
 
@@ -76,17 +67,21 @@ impl MultiCoder {
     }
 
     pub fn feedback(&mut self, start: i64) -> i64 {
-        5
-/*
-        let mut answer = start;
-        for i in 0..self.senders.len() {
-            let tmp = self.send(i, answer);
+        let mut answer = self.send(0, start);
+        let mut final_answer = 0;
+        let mut index = 1;
 
-            if tmp > 0 {
-                answer = tmp;
+        while answer > 0 {
+            answer = self.send(index, answer);
+
+            if answer > 0 {
+                final_answer = answer;
             }
+
+            index = (index + 1) % self.senders.len();
         }
-        */
+
+        final_answer
     }
 
 }
@@ -104,21 +99,14 @@ mod tests {
         let mut mcoder = MultiCoder::new(&prog, size);
 
         for (i, p) in phase.iter().enumerate() {
-            println!("HELLO {}", mcoder.send(i, *p));
+            mcoder.send(i, *p);
         }
 
-        let mut answer = 0;
-        for i in 0..size {
-            let tmp = mcoder.send(i, answer);
-
-            if tmp > 0 {
-                answer = tmp;
-            }
-        }
+        let answer = mcoder.feedback(0);
 
         assert_eq!(answer, 43210);
     }
-/*
+
     #[test]
     fn test_normal2() {
         let prog = vec!(3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,
@@ -127,11 +115,11 @@ mod tests {
         let size = phase.len();
         let mut mcoder = MultiCoder::new(&prog, size);
 
-        for p in phase {
-            mcoder.manual(p);
+        for (i, p) in phase.iter().enumerate() {
+            mcoder.send(i, *p);
         }
 
-        let answer = mcoder.feedback();
+        let answer = mcoder.feedback(0);
 
         assert_eq!(answer, 65210);
     }
@@ -144,11 +132,11 @@ mod tests {
         let phase = vec!(9,8,7,6,5);
         let mut mcoder = MultiCoder::new(&prog, phase.len());
 
-        for p in phase {
-            mcoder.manual(p);
+        for (i, p) in phase.iter().enumerate() {
+            mcoder.send(i, *p);
         }
 
-        let answer = mcoder.feedback();
+        let answer = mcoder.feedback(0);
         assert_eq!(answer, 139629729);
     }
 
@@ -160,12 +148,12 @@ mod tests {
         let phase = vec!(9,7,8,5,6);
         let mut mcoder = MultiCoder::new(&prog, phase.len());
 
-        for p in phase {
-            mcoder.manual(p);
+        for (i, p) in phase.iter().enumerate() {
+            mcoder.send(i, *p);
         }
 
-        let answer = mcoder.feedback();
+        let answer = mcoder.feedback(0);
         assert_eq!(answer, 18216);
     }
-    */
+
 }

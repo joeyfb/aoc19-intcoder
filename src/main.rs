@@ -19,12 +19,7 @@ fn read(filename: &str) -> Result<Vec<i64>,std::io::Error> {
         }
     }).collect())
 }
-fn main() -> io::Result<()> {
-    let prog = read("program.txt")?;
 
-    Ok(())
-}
-/*
 fn main() -> io::Result<()> {
     let prog = read("program.txt")?;
     
@@ -48,15 +43,11 @@ fn part1(prog: &Vec<i64>) -> i64 {
         
         let mut mcoder = multicoder::MultiCoder::new(&prog, num_computers);
         
-        for p in phase {
-            mcoder.manual(p);
+        for (i, p) in phase.iter().enumerate() {
+            mcoder.send(i, *p);
         }
 
-        let mut answer = 0;
-        for _i in 0..num_computers {
-            answer = mcoder.manual(answer);
-        }
-
+        let answer = mcoder.feedback(0);
         answers.push(answer);
 
         // ask for next permutation
@@ -81,11 +72,11 @@ fn part2(prog: &Vec<i64>) -> i64 {
         
         let mut mcoder = multicoder::MultiCoder::new(&prog, num_computers);
 
-        for p in phase {
-            mcoder.manual(p);
+        for (i, p) in phase.iter().enumerate() {
+            mcoder.send(i, *p);
         }
 
-        let answer = mcoder.feedback();
+        let answer = mcoder.feedback(0);
 
         answers.push(answer);
 
@@ -112,4 +103,3 @@ mod tests {
         Ok(())
     }
 }
-*/

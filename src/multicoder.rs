@@ -1,4 +1,6 @@
-use crate::intcoder::Intcode;
+use crate::intcoder::{Intcode, IntResponse};
+use std::thread;
+use std::sync::mpsc;
 
 pub struct MultiCoder {
     computers : Vec<Intcode>,
@@ -9,6 +11,18 @@ impl MultiCoder {
 
     pub fn new(prog: &Vec<i64>, size: usize) -> MultiCoder {
         let mut computers = Vec::new();
+
+        /*
+         * TODO
+         * Rewrite using senders/receivers, perhaps a function
+         * to send a message to a specific computer, and another
+         * that receives them. We could setup a specific default 
+         * value like 0 always goes to 1, then adapt it later...
+         *
+         * IDEA:
+         * Rewrite Intcoder run to return RESPONSE
+         * { type: Output/Input/Halt, value: (only for output) }
+         */
 
         for _i in 0..size {
             computers.push(Intcode::new(&prog));
@@ -21,7 +35,11 @@ impl MultiCoder {
     }
 
     pub fn manual(&mut self, input: i64) -> i64 {
-        let answer = self.computers[self.active].run(input);
+        let response = self.computers[self.active].run(input);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         self.active = (self.active + 1) % self.computers.len();
 
         answer
@@ -29,18 +47,22 @@ impl MultiCoder {
 
     pub fn feedback(&mut self) -> i64 {
         let mut answer = 0;
-        let mut isgo = 1;
+        let mut isgo = true;
 
-        while isgo >= 0 {
+        while isgo {
 
             for comp in &mut self.computers {
-                isgo = comp.run(answer);
 
-                if isgo > 0 {
-                    answer = isgo;
-                } else {
-                    break;
+                match comp.run(answer) {
+                    IntResponse::Output(i) => {
+                        answer = i;
+                    },
+                    IntResponse::Halt => {
+                        isgo = false;
+                    },
+                    IntResponse::Input => {}
                 }
+
             }
         }
 
@@ -65,10 +87,7 @@ mod tests {
             mcoder.manual(p);
         }
 
-        let mut answer = 0;
-        for _i in 0..size {
-            answer = mcoder.manual(answer);
-        }
+        let answer = mcoder.feedback();
 
         assert_eq!(answer, 43210);
     }
@@ -85,10 +104,7 @@ mod tests {
             mcoder.manual(p);
         }
 
-        let mut answer = 0;
-        for _i in 0..size {
-            answer = mcoder.manual(answer);
-        }
+        let answer = mcoder.feedback();
 
         assert_eq!(answer, 65210);
     }

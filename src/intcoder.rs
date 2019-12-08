@@ -3,6 +3,12 @@ pub struct Intcode {
     pos: usize
 }
 
+pub enum IntResponse {
+    Halt,
+    Input,
+    Output(i64)
+}
+
 
 impl Intcode {
 
@@ -15,10 +21,10 @@ impl Intcode {
         }
     }
     
-    pub fn run(&mut self, input: i64) -> i64 {
+    pub fn run(&mut self, input: i64) -> IntResponse {
         let mut input_spent = false;
         let mut halt = false;
-        let mut result = 0;
+        let mut result = IntResponse::Halt;
 
         while ! halt {
             let instruction = self.fetch(false);
@@ -48,7 +54,7 @@ impl Intcode {
                     if input_spent { 
                         self.pos -= 1;
                         halt = true;
-                        result = 0;
+                        result = IntResponse::Input;
                     } else {
                         let first = self.fetch(false);
                         self.prog[first as usize] = input;
@@ -57,7 +63,7 @@ impl Intcode {
                 },
                 4 => {
                     halt = true;
-                    result = self.fetch(first_mode);
+                    result = IntResponse::Output(self.fetch(first_mode));
                 },
 
                 // JUMP
@@ -70,7 +76,7 @@ impl Intcode {
 
                 99 => {
                     halt = true;
-                    result = -1;
+                    result = IntResponse::Halt;
                 },
 
                 _   => {
@@ -146,29 +152,53 @@ mod tests {
     fn test_immediate_eq() {
         let eq_8 = vec!(3,3,1108,-1,8,3,4,3,99);
         let mut icoder = Intcode::new(&eq_8);
-        let answer = icoder.run(8);
+        let response = icoder.run(8);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1);
 
         let mut icoder = Intcode::new(&eq_8);
-        let answer = icoder.run(0);
+        let response = icoder.run(0);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 0);
         
         let lt_8 = vec!(3,3,1107,-1,8,3,4,3,99);
         let mut icoder = Intcode::new(&lt_8);
-        let answer = icoder.run(9);
+        let response = icoder.run(9);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 0);
 
         let mut icoder = Intcode::new(&lt_8);
-        let answer = icoder.run(0);
+        let response = icoder.run(0);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1);
         
         let lt_8 = vec!(3,4,1007,0,-1,4,4,4,99);
         let mut icoder = Intcode::new(&lt_8);
-        let answer = icoder.run(9);
+        let response = icoder.run(9);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1);
 
         let mut icoder = Intcode::new(&lt_8);
-        let answer = icoder.run(0);
+        let response = icoder.run(0);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 0);
     }
 
@@ -176,20 +206,36 @@ mod tests {
     fn test_pos_eq() {
         let eq_8 = vec!(3,9,8,9,10,9,4,9,99,-1,8);
         let mut icoder = Intcode::new(&eq_8);
-        let answer = icoder.run(8);
+        let response = icoder.run(8);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1);
 
         let mut icoder = Intcode::new(&eq_8);
-        let answer = icoder.run(0);
+        let response = icoder.run(0);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 0);
         
         let lt_8 = vec!(3,9,7,9,10,9,4,9,99,-1,8);
         let mut icoder = Intcode::new(&lt_8);
-        let answer = icoder.run(9);
+        let response = icoder.run(9);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 0);
 
         let mut icoder = Intcode::new(&lt_8);
-        let answer = icoder.run(0);
+        let response = icoder.run(0);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1);
     }
 
@@ -198,37 +244,69 @@ mod tests {
                 //     0 1  2 3  4  5   6  7  8   9 10 11  12
         let jmp = vec!(3,11,5,11,12,104,1,99,104,0,99, 0, 8);
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(1);
+        let response = icoder.run(1);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 0);
         
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(12);
+        let response = icoder.run(2);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 0);
 
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(0);
+        let response = icoder.run(0);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1);
         
         let jmp = vec!(3,11,6,11,12,104,1,99,104,0,99, 0, 8);
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(1);
+        let response = icoder.run(1);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1);
         
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(12);
+        let response = icoder.run(2);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1);
 
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(0);
+        let response = icoder.run(0);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 0);
         
         let jmp = vec!(3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9);
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(0);
+        let response = icoder.run(0);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 0);
         
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(12);
+        let response = icoder.run(2);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1);
     }
 
@@ -237,37 +315,69 @@ mod tests {
                 //     0 1  2 3  4  5   6  7  8   9 10 11  12
         let jmp = vec!(3,3,1105,0,8,104,1,99,104,0,99);
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(1);
+        let response = icoder.run(1);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 0);
         
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(12);
+        let response = icoder.run(2);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 0);
 
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(0);
+        let response = icoder.run(0);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1);
         
         let jmp = vec!(3,3,1106,11,8,104,1,99,104,0,99);
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(1);
+        let response = icoder.run(1);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1);
         
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(12);
+        let response = icoder.run(2);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1);
 
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(0);
+        let response = icoder.run(0);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 0);
         
         let jmp = vec!(3,3,1105,-1,9,1101,0,0,12,4,12,99,1);
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(0);
+        let response = icoder.run(0);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 0);
         
         let mut icoder = Intcode::new(&jmp);
-        let answer = icoder.run(12);
+        let response = icoder.run(2);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1);
     }
 
@@ -278,15 +388,27 @@ mod tests {
                         999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99);
 
         let mut icoder = Intcode::new(&long);
-        let answer = icoder.run(7);
+        let response = icoder.run(7);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 999);
 
         let mut icoder = Intcode::new(&long);
-        let answer = icoder.run(8);
+        let response = icoder.run(8);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1000);
 
         let mut icoder = Intcode::new(&long);
-        let answer = icoder.run(9);
+        let response = icoder.run(9);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
         assert_eq!(answer, 1001);
     }
 }

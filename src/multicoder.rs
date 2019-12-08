@@ -3,8 +3,8 @@ use std::thread;
 use std::sync::mpsc::{channel, Sender, Receiver};
 
 pub struct MultiCoder {
-    senders : Vec<Sender<i64>>,
-    receivers : Vec<Receiver<i64>>,
+    senders : Vec<Sender<IntResponse>>,
+    receivers : Vec<Receiver<IntResponse>>,
     computers : Vec<bool>,
     active: usize
 }
@@ -27,19 +27,17 @@ impl MultiCoder {
                 let mut final_answer = -1;
 
                 for received in to_rx {
-                    let response = computer.run(received);
-                    let answer = match response {
+                    match received {
                         IntResponse::Output(i) => {
-                            final_answer = i;
-                            from_tx.send(i).unwrap();
+                            let response = computer.run(i);
+                            match &response {
+                                IntResponse::Halt => break,
+                                _ => {}
+                            }
+                            from_tx.send(response).unwrap();
                         },
-                        IntResponse::Input => {
-                            from_tx.send(0).unwrap();
-                        },
-                        IntResponse::Halt => {
-                            break;
-                        }
-                    };
+                        _ => {}
+                    }
                 }
             });
 
@@ -56,7 +54,7 @@ impl MultiCoder {
     }
 
     pub fn send(&mut self, comp: usize, input: i64) -> i64 {
-        self.senders[comp].send(input).unwrap();
+        self.senders[comp].send(IntResponse::Output(input)).unwrap();
 
         self.output(comp)
     }
@@ -69,9 +67,26 @@ impl MultiCoder {
 
     pub fn output(&mut self, comp: usize) -> i64 {
         match self.receivers[comp].recv() {
-            Ok(i) => i,
+            Ok(i) => match i {
+                IntResponse::Output(i) => i,
+                _ => -1
+            },
             _ => -1
         }
+    }
+
+    pub fn feedback(&mut self, start: i64) -> i64 {
+        5
+/*
+        let mut answer = start;
+        for i in 0..self.senders.len() {
+            let tmp = self.send(i, answer);
+
+            if tmp > 0 {
+                answer = tmp;
+            }
+        }
+        */
     }
 
 }

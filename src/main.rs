@@ -21,74 +21,31 @@ fn read(filename: &str) -> Result<Vec<i64>,std::io::Error> {
 }
 
 fn main() -> io::Result<()> {
-    let prog = read("program.txt")?;
-    
-    let answer = part1(&prog);
-    println!("MAXIMUM THRUST: {:?}", answer);
+    let prog = read("program.txt")?; 
 
-    let answer = part2(&prog);
-    println!("FEEDBACK THRUST: {:?}", answer);
+    // part 1
+    let mut icoder = intcoder::Intcode::new(&prog);
+    let response = icoder.run(1);
+    let mut answer = 1;
+
+    answer = match response {
+        intcoder::IntResponse::Output(i) => i,
+        _ => -1
+    };
+    println!("{}", answer);
+
+    // part 1
+    let mut icoder = intcoder::Intcode::new(&prog);
+    let response = icoder.run(2);
+    let mut answer = 1;
+
+    answer = match response {
+        intcoder::IntResponse::Output(i) => i,
+        _ => -1
+    };
+    println!("{}", answer);
 
     Ok(())
-}
-
-fn part1(prog: &Vec<i64>) -> i64 {
-    let mut phase_settings = vec!(0,1,2,3,4);
-    let mut answers = Vec::new();
-    let num_computers = phase_settings.len();
-
-    loop {
-        // permutohedron has to_vec generate next permutation
-        let phase = phase_settings.to_vec();
-        
-        let mut mcoder = multicoder::MultiCoder::new(&prog, num_computers);
-        
-        for (i, p) in phase.iter().enumerate() {
-            mcoder.send(i, *p);
-        }
-
-        let answer = mcoder.feedback(0);
-        answers.push(answer);
-
-        // ask for next permutation
-        if !phase_settings.next_permutation() {
-            break;
-        }
-    }
-
-    answers.sort();
-
-    answers[answers.len() - 1]
-}
-
-fn part2(prog: &Vec<i64>) -> i64 {
-    let mut phase_settings = vec!(5,6,7,8,9);
-    let mut answers = Vec::new();
-    let num_computers = phase_settings.len();
-
-    loop {
-        // permutohedron has to_vec generate next permutation
-        let phase = phase_settings.to_vec();
-        
-        let mut mcoder = multicoder::MultiCoder::new(&prog, num_computers);
-
-        for (i, p) in phase.iter().enumerate() {
-            mcoder.send(i, *p);
-        }
-
-        let answer = mcoder.feedback(0);
-
-        answers.push(answer);
-
-        // ask for next permutation
-        if !phase_settings.next_permutation() {
-            break;
-        }
-    }
-
-    answers.sort();
-
-    answers[answers.len() - 1]
 }
 
 #[cfg(test)]

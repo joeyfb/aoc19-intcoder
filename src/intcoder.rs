@@ -1,6 +1,7 @@
 pub struct Intcode {
     prog: Vec<i64>,
-    pos: usize
+    pos: usize,
+    rel: i64,
 }
 
 #[derive(Debug)]
@@ -14,11 +15,16 @@ pub enum IntResponse {
 impl Intcode {
 
     pub fn new(to_copy: &Vec<i64>) -> Intcode {
-        let prog = to_copy.clone();
+        let mut prog = to_copy.clone();
+
+        for _i in 0..300 {
+            prog.push(0);
+        }
 
         Intcode {
             prog: prog,
-            pos: 0
+            pos: 0,
+            rel: 0
         }
     }
     
@@ -28,7 +34,7 @@ impl Intcode {
         let mut result = IntResponse::Halt;
 
         while ! halt {
-            let instruction = self.fetch(false);
+            let instruction = self.fetch(1);
             let (code, first_mode, second_mode, third_mode) = self.decode(instruction);
 
             //println!("{}: {}", self.pos, code);
@@ -43,9 +49,11 @@ impl Intcode {
                     let mut store = self.pos;
                     self.pos += 1;
 
-                    if third_mode {
-                        store = self.prog[store] as usize;
-                    }
+                    store = match third_mode {
+                        0 => self.prog[store] as usize,
+                        1 => store,
+                        _ => (self.prog[store] + self.rel) as usize
+                    };
 
                     self.prog[store] = self.arithmetic(code, first, second);
                 },
@@ -57,8 +65,13 @@ impl Intcode {
                         halt = true;
                         result = IntResponse::Input;
                     } else {
-                        let first = self.fetch(false);
-                        self.prog[first as usize] = input;
+                        let first = self.fetch(1);
+
+                        if first_mode == 2 {
+                            self.prog[(first + self.rel) as usize] = input;
+                        } else {
+                            self.prog[first as usize] = input;
+                        }
                         input_spent = true;
                     }
                 },
@@ -75,13 +88,18 @@ impl Intcode {
                     self.pos = self.jmp(code, first, second);
                 },
 
+                // Relative set
+                9 => {
+                    let first = self.fetch(first_mode);
+                    self.rel += first;
+                },
+
                 99 => {
                     halt = true;
                     result = IntResponse::Halt;
                 },
 
                 _   => {
-                    println!("error! {}: {}", self.pos, code);
                     break;
                 },
             };
@@ -90,31 +108,36 @@ impl Intcode {
         result
     }
 
-    fn decode(&self, instruction: i64) ->  (i64, bool, bool, bool) {
+    fn decode(&self, instruction: i64) ->  (i64, i64, i64, i64) {
         let code = instruction % 100;
         let mut mode = instruction / 100;
-        let mut third_mode = true;
-        let mut second_mode = true;
-        let mut first_mode = true;
+        let mut third_mode = 0;
+        let mut second_mode = 0;
+        let mut first_mode = 0;
 
         if mode > 0 {
-            first_mode = (mode % 10) != 1;
+            first_mode = (mode % 10);
             mode = mode / 10;
-            second_mode = (mode % 10) != 1;
+            second_mode = (mode % 10);
             mode = mode / 10;
-            third_mode = (mode % 10) != 1;
+            third_mode = (mode % 10);
         }
 
         (code, first_mode, second_mode, third_mode)
     }
 
-    fn fetch(&mut self, is_pos: bool) -> i64 {
+    fn fetch(&mut self, mode: i64) -> i64 {
         let arg = self.prog[self.pos];
         self.pos += 1;
 
-        match is_pos {
-            true => self.prog[arg as usize],
-            false => arg
+        match mode {
+            0 => self.prog[arg as usize],
+            1 => arg,
+            2 => self.prog[(arg + self.rel) as usize],
+            _ => {
+                println!("error!!!");
+                return -1;
+            }
         }
     }
 
@@ -141,6 +164,11 @@ impl Intcode {
             8 => (val1 == val2) as i64,
             _ => 00,
         }
+    }
+
+
+    fn dump(&self) {
+        println!("{:?}", self.prog);
     }
 }
 
@@ -412,4 +440,59 @@ mod tests {
         };
         assert_eq!(answer, 1001);
     }
+
+    #[test]
+    fn tet_relative() {
+        let rel = vec!(109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99);
+        let mut icoder = Intcode::new(&rel);
+
+        for val in rel {
+            let response = icoder.run(0);
+            let answer = match response {
+                IntResponse::Output(i) => i,
+                _ => -1
+            };
+            assert_eq!(answer, val);
+        }
+    }
+
+    #[test]
+    fn tet_relative2() {
+        let rel = vec!(1102,34915192,34915192,7,4,7,99,0);
+        let mut icoder = Intcode::new(&rel);
+        let response = icoder.run(0);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
+        assert_eq!(answer, 1219070632396864);
+    }
+
+    #[test]
+    fn tet_relative3() {
+        let rel = vec!(104,1125899906842624,99);
+        let mut icoder = Intcode::new(&rel);
+        let response = icoder.run(0);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
+        assert_eq!(answer, 1125899906842624);
+    }
+
+    #[test]
+    fn tet_relative4() {
+        let rel = vec!(109,10,21102,3,3,0,4,10,99);
+        let mut icoder = Intcode::new(&rel);
+        let response = icoder.run(0);
+        let answer = match response {
+            IntResponse::Output(i) => i,
+            _ => -1
+        };
+
+        icoder.dump();
+
+        assert_eq!(answer, 9);
+    }
+
 }

@@ -1,9 +1,8 @@
 use std::fs::File;
 use std::io::{self, prelude::*};
-use permutohedron::LexicalPermutation;
+use std::time::{Instant};
 
 mod intcoder;
-mod multicoder;
 
 fn read(filename: &str) -> Result<Vec<i64>,std::io::Error> {
     let mut file = File::open(filename)?;
@@ -21,14 +20,14 @@ fn read(filename: &str) -> Result<Vec<i64>,std::io::Error> {
 }
 
 fn main() -> io::Result<()> {
+    let now = Instant::now();
     let prog = read("program.txt")?; 
 
     // part 1
     let mut icoder = intcoder::Intcode::new(&prog);
     let response = icoder.run(1);
-    let mut answer = 1;
 
-    answer = match response {
+    let answer = match response {
         intcoder::IntResponse::Output(i) => i,
         _ => -1
     };
@@ -37,13 +36,17 @@ fn main() -> io::Result<()> {
     // part 1
     let mut icoder = intcoder::Intcode::new(&prog);
     let response = icoder.run(2);
-    let mut answer = 1;
 
-    answer = match response {
+    let answer = match response {
         intcoder::IntResponse::Output(i) => i,
         _ => -1
     };
     println!("{}", answer);
+
+    // TIMING
+    let duration = (now.elapsed().subsec_millis() as u128) + 1000*(now.elapsed().as_secs() as u128);
+
+    println!("it took {}ms", duration);
 
     Ok(())
 }

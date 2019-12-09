@@ -27,7 +27,16 @@ impl Intcode {
             rel: 0
         }
     }
-    
+   
+    /*
+     * Run intcode computers and feed INPUT to computer at first request. In various
+     * conditions the program will stop and return an IntResponse, communicating the state
+     * of the program:
+     *
+     * IntResponse::Output(i) -> program has stopped to hand off calculation
+     * IntResponse::Input     -> program needs input to continue (and initially given input was used)
+     * IntResponse::Halt      -> progam has completed
+     */
     pub fn run(&mut self, input: i64) -> IntResponse {
         let mut input_spent = false;
         let mut halt = false;
@@ -36,9 +45,6 @@ impl Intcode {
         while ! halt {
             let instruction = self.fetch(1);
             let (code, first_mode, second_mode, third_mode) = self.decode(instruction);
-
-            //println!("{}: {}", self.pos, code);
-            //println!("{:?}", self.prog);
 
             match code {
 
@@ -108,6 +114,10 @@ impl Intcode {
         result
     }
 
+    /*
+     * Decodes and incode instruction, extracting the code and any parameter modes.
+     * Default mode is positional mode.
+     */
     fn decode(&self, instruction: i64) ->  (i64, i64, i64, i64) {
         let code = instruction % 100;
         let mut mode = instruction / 100;
@@ -116,16 +126,24 @@ impl Intcode {
         let mut first_mode = 0;
 
         if mode > 0 {
-            first_mode = (mode % 10);
+            first_mode = mode % 10;
             mode = mode / 10;
-            second_mode = (mode % 10);
+            second_mode = mode % 10;
             mode = mode / 10;
-            third_mode = (mode % 10);
+            third_mode = mode % 10;
         }
 
         (code, first_mode, second_mode, third_mode)
     }
 
+    /*
+     * Retrieves next intcode off the program and increments instruction pointer.
+     * Modes are:
+     *
+     * 0 -> positional mode, argument is treated as index into program
+     * 1 -> immediate mode, immediately used value at given address
+     * 2 -> relative mode, same as poitional mode but increment index by global offset
+     */
     fn fetch(&mut self, mode: i64) -> i64 {
         let arg = self.prog[self.pos];
         self.pos += 1;
@@ -141,6 +159,10 @@ impl Intcode {
         }
     }
 
+    /*
+     * All jump code intructions. Returns new IP location based on
+     * whether given test condition passes
+     */
     fn jmp(&self, code: i64, left : i64, right: i64) -> usize {
         let mut dest = self.pos;
         let jump = match code {
@@ -156,6 +178,9 @@ impl Intcode {
         dest
     }
 
+    /*
+     * Computes given intcode arithmetic and returns result.
+     */
     fn arithmetic(&self, code: i64, val1 : i64, val2 : i64) -> i64 {
         match code {
             1 => val1 + val2,
@@ -442,7 +467,7 @@ mod tests {
     }
 
     #[test]
-    fn tet_relative() {
+    fn test_relative() {
         let rel = vec!(109,1,204,-1,1001,100,1,100,1008,100,16,101,1006,101,0,99);
         let mut icoder = Intcode::new(&rel);
 
@@ -457,7 +482,7 @@ mod tests {
     }
 
     #[test]
-    fn tet_relative2() {
+    fn test_bigint() {
         let rel = vec!(1102,34915192,34915192,7,4,7,99,0);
         let mut icoder = Intcode::new(&rel);
         let response = icoder.run(0);
@@ -469,7 +494,7 @@ mod tests {
     }
 
     #[test]
-    fn tet_relative3() {
+    fn test_bigint2() {
         let rel = vec!(104,1125899906842624,99);
         let mut icoder = Intcode::new(&rel);
         let response = icoder.run(0);
@@ -481,7 +506,7 @@ mod tests {
     }
 
     #[test]
-    fn tet_relative4() {
+    fn test_arith_rel() {
         let rel = vec!(109,10,21102,3,3,0,4,10,99);
         let mut icoder = Intcode::new(&rel);
         let response = icoder.run(0);

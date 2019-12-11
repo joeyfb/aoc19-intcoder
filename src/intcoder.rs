@@ -67,37 +67,24 @@ impl Intcode {
                 1|2|7|8 => {
                     let first = self.fetch(first_mode);
                     let second = self.fetch(second_mode);
-                    let mut store = self.pos;
-                    self.pos += 1;
+                    let value = self.arithmetic(code, first, second);
 
-                    store = match third_mode {
-                        IntMode::Pos => self.prog[store] as usize,
-                        IntMode::Imm => store,
-                        IntMode::Rel => (self.prog[store] + self.rel) as usize
-                    };
-
-                    self.prog[store] = self.arithmetic(code, first, second);
+                    self.store(third_mode, value);
                 },
 
                 // I/O
                 3 => {
+                    match first_mode {
+                        IntMode::Imm => panic!("Immediate mode for input doesn't make sense!"),
+                        _ => {}
+                    };
+
                     if input_spent { 
                         self.pos -= 1;
-                        halt = true;
                         result = IntResponse::Input;
+                        halt = true;
                     } else {
-                        let first = self.fetch(IntMode::Imm);
-
-                        match first_mode {
-                            IntMode::Pos => {
-                                self.prog[first as usize] = input;
-                            },
-                            IntMode::Rel => {
-                                self.prog[(first + self.rel) as usize] = input;
-                            },
-                            IntMode::Imm => panic!("Attempting to set imm val in input!")
-                        }
-
+                        self.store(first_mode, input);
                         input_spent = true;
                     }
                 },
@@ -116,8 +103,7 @@ impl Intcode {
 
                 // Relative set
                 9 => {
-                    let first = self.fetch(first_mode);
-                    self.rel += first;
+                    self.rel += self.fetch(first_mode);
                 },
 
                 99 => {
@@ -147,6 +133,24 @@ impl Intcode {
         let third = mode % 10;
 
         (code, self.mode(first), self.mode(second), self.mode(third))
+    }
+
+    /*
+     * Store given value at current position in program with given mode. For
+     * example, if mode is positional current position in program will be 
+     * treated as address to store value in.
+     */
+    fn store(&mut self, mode: IntMode, val: i64) {
+        let mut store = self.pos;
+        self.pos += 1;
+
+        store = match mode {
+            IntMode::Pos => self.prog[store] as usize,
+            IntMode::Imm => store,
+            IntMode::Rel => (self.prog[store] + self.rel) as usize
+        };
+
+        self.prog[store] = val;
     }
 
     /*

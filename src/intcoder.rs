@@ -1,6 +1,6 @@
 pub struct Intcode {
     prog: Vec<i64>,
-    pos: usize,
+    ip: usize,
     rel: i64,
 }
 
@@ -27,18 +27,14 @@ impl Intcode {
         let mut prog = to_copy.clone();
 
         // TODO
-        // instead of just adding extra lines at the end maybe make a
-        // hashmap called HEAP, then if an index referes to something
-        // outside of the array, just initialize to 0 and retrieve/
-        // set it. Obvious issue is if we ever start executing from
-        // beyond end of code...
-        for _i in 0..300 {
-            prog.push(0);
-        }
+        // Shouldn't just niavely add space to end, ideally
+        // use checks in self.store/self.fetch to see if we
+        // exceed end of array then pad zeroes to fit it
+        prog.resize(prog.len() + 1000, 0);
 
         Intcode {
             prog: prog,
-            pos: 0,
+            ip: 0,
             rel: 0
         }
     }
@@ -80,7 +76,7 @@ impl Intcode {
                     };
 
                     if input_spent { 
-                        self.pos -= 1;
+                        self.ip -= 1;
                         result = IntResponse::Input;
                         halt = true;
                     } else {
@@ -98,7 +94,7 @@ impl Intcode {
                     let first = self.fetch(first_mode);
                     let second = self.fetch(second_mode);
 
-                    self.pos = self.jmp(code, first, second);
+                    self.ip = self.jmp(code, first, second);
                 },
 
                 // Relative set
@@ -141,8 +137,8 @@ impl Intcode {
      * treated as address to store value in.
      */
     fn store(&mut self, mode: IntMode, val: i64) {
-        let mut store = self.pos;
-        self.pos += 1;
+        let mut store = self.ip;
+        self.ip += 1;
 
         store = match mode {
             IntMode::Pos => self.prog[store] as usize,
@@ -174,13 +170,13 @@ impl Intcode {
      * 2 -> relative mode, same as poitional mode but increment index by global offset
      */
     fn fetch(&mut self, mode: IntMode) -> i64 {
-        let arg = self.prog[self.pos];
-        self.pos += 1;
-
+        let val = self.prog[self.ip];
+        self.ip += 1;
+        
         match mode {
-            IntMode::Pos => self.prog[arg as usize],
-            IntMode::Imm => arg,
-            IntMode::Rel => self.prog[(arg + self.rel) as usize]
+            IntMode::Pos => self.prog[val as usize],
+            IntMode::Imm => val,
+            IntMode::Rel => self.prog[(val + self.rel) as usize]
         }
     }
 
@@ -189,7 +185,7 @@ impl Intcode {
      * whether given test condition passes
      */
     fn jmp(&self, code: i64, left : i64, right: i64) -> usize {
-        let mut dest = self.pos;
+        let mut dest = self.ip;
         let jump = match code {
             5 => left != 0,
             6 => left == 0,

@@ -25,23 +25,29 @@ fn main() -> io::Result<()> {
 
     // part 1
     let mut icoder = intcoder::Intcode::new(&prog);
-    let response = icoder.run(1);
+    let mut halt = false;
 
-    let answer = match response {
-        intcoder::IntResponse::Output(i) => i,
-        _ => -1
-    };
-    println!("{}", answer);
+    while ! halt {
+        let response = icoder.run(1);
 
-    // part 1
-    let mut icoder = intcoder::Intcode::new(&prog);
-    let response = icoder.run(2);
+        let answer = match response {
+            intcoder::IntResponse::Output(i) => i,
+            intcoder::IntResponse::Input => {
+                println!("asking for input!");
+                -1
+            },
+            intcoder::IntResponse::Halt => {
+                println!("halting!");
+                halt = true;
+                -1
+            }
+        };
 
-    let answer = match response {
-        intcoder::IntResponse::Output(i) => i,
-        _ => -1
-    };
-    println!("{}", answer);
+        if answer != -1 {
+            println!("{}", answer);
+        }
+    }
+
 
     // TIMING
     let duration = (now.elapsed().subsec_millis() as u128) + 1000*(now.elapsed().as_secs() as u128);

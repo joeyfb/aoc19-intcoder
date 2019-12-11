@@ -4,6 +4,7 @@ pub struct Intcode {
     rel: i64,
 }
 
+
 #[derive(Debug)]
 pub enum IntResponse {
     Halt,
@@ -12,11 +13,25 @@ pub enum IntResponse {
 }
 
 
+#[derive(Debug)]
+pub enum IntMode {
+    Pos,
+    Imm,
+    Rel, 
+}
+
+
 impl Intcode {
 
     pub fn new(to_copy: &Vec<i64>) -> Intcode {
         let mut prog = to_copy.clone();
 
+        // TODO
+        // instead of just adding extra lines at the end maybe make a
+        // hashmap called HEAP, then if an index referes to something
+        // outside of the array, just initialize to 0 and retrieve/
+        // set it. Obvious issue is if we ever start executing from
+        // beyond end of code...
         for _i in 0..300 {
             prog.push(0);
         }
@@ -43,7 +58,7 @@ impl Intcode {
         let mut result = IntResponse::Halt;
 
         while ! halt {
-            let instruction = self.fetch(1);
+            let instruction = self.fetch(IntMode::Imm);
             let (code, first_mode, second_mode, third_mode) = self.decode(instruction);
 
             match code {
@@ -56,9 +71,9 @@ impl Intcode {
                     self.pos += 1;
 
                     store = match third_mode {
-                        0 => self.prog[store] as usize,
-                        1 => store,
-                        _ => (self.prog[store] + self.rel) as usize
+                        IntMode::Pos => self.prog[store] as usize,
+                        IntMode::Imm => store,
+                        IntMode::Rel => (self.prog[store] + self.rel) as usize
                     };
 
                     self.prog[store] = self.arithmetic(code, first, second);
@@ -71,13 +86,18 @@ impl Intcode {
                         halt = true;
                         result = IntResponse::Input;
                     } else {
-                        let first = self.fetch(1);
+                        let first = self.fetch(IntMode::Imm);
 
-                        if first_mode == 2 {
-                            self.prog[(first + self.rel) as usize] = input;
-                        } else {
-                            self.prog[first as usize] = input;
+                        match first_mode {
+                            IntMode::Pos => {
+                                self.prog[first as usize] = input;
+                            },
+                            IntMode::Rel => {
+                                self.prog[(first + self.rel) as usize] = input;
+                            },
+                            IntMode::Imm => panic!("Attempting to set imm val in input!")
                         }
+
                         input_spent = true;
                     }
                 },
@@ -105,9 +125,7 @@ impl Intcode {
                     result = IntResponse::Halt;
                 },
 
-                _   => {
-                    break;
-                },
+                _ => panic!("bad opcode in run!"),
             };
         }
 
@@ -118,22 +136,29 @@ impl Intcode {
      * Decodes and incode instruction, extracting the code and any parameter modes.
      * Default mode is positional mode.
      */
-    fn decode(&self, instruction: i64) ->  (i64, i64, i64, i64) {
+    fn decode(&self, instruction: i64) ->  (i64, IntMode, IntMode, IntMode) {
         let code = instruction % 100;
         let mut mode = instruction / 100;
-        let mut third_mode = 0;
-        let mut second_mode = 0;
-        let mut first_mode = 0;
 
-        if mode > 0 {
-            first_mode = mode % 10;
-            mode = mode / 10;
-            second_mode = mode % 10;
-            mode = mode / 10;
-            third_mode = mode % 10;
+        let first = mode % 10;
+        mode = mode / 10;
+        let second = mode % 10;
+        mode = mode / 10;
+        let third = mode % 10;
+
+        (code, self.mode(first), self.mode(second), self.mode(third))
+    }
+
+    /*
+     * Return mode of given input
+     */
+    fn mode(&self, bit: i64) -> IntMode {
+        match bit {
+            0 => IntMode::Pos,
+            1 => IntMode::Imm,
+            2 => IntMode::Rel,
+            _ => panic!("bad bit mode!")
         }
-
-        (code, first_mode, second_mode, third_mode)
     }
 
     /*
@@ -144,18 +169,14 @@ impl Intcode {
      * 1 -> immediate mode, immediately used value at given address
      * 2 -> relative mode, same as poitional mode but increment index by global offset
      */
-    fn fetch(&mut self, mode: i64) -> i64 {
+    fn fetch(&mut self, mode: IntMode) -> i64 {
         let arg = self.prog[self.pos];
         self.pos += 1;
 
         match mode {
-            0 => self.prog[arg as usize],
-            1 => arg,
-            2 => self.prog[(arg + self.rel) as usize],
-            _ => {
-                println!("error!!!");
-                return -1;
-            }
+            IntMode::Pos => self.prog[arg as usize],
+            IntMode::Imm => arg,
+            IntMode::Rel => self.prog[(arg + self.rel) as usize]
         }
     }
 
@@ -168,7 +189,7 @@ impl Intcode {
         let jump = match code {
             5 => left != 0,
             6 => left == 0,
-            _ => false
+            _ => panic!("bad opcode in jmp!"),
         };
 
         if jump {
@@ -187,7 +208,7 @@ impl Intcode {
             2 => val1 * val2,
             7 => (val1 < val2) as i64,
             8 => (val1 == val2) as i64,
-            _ => 00,
+            _ => panic!("bad opcode in arithmetic!"),
         }
     }
 

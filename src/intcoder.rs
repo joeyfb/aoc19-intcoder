@@ -57,6 +57,9 @@ impl Intcode {
             let instruction = self.fetch(IntMode::Imm);
             let (code, first_mode, second_mode, third_mode) = self.decode(instruction);
 
+            //println!("{}, {:?}, {:?}, {:?}", code, first_mode, second_mode, third_mode);
+            //println!("{}", self.prog[0]);
+
             match code {
 
                 // ARITHMETIC
@@ -103,11 +106,12 @@ impl Intcode {
                 },
 
                 99 => {
+                    println!("at halt");
                     halt = true;
-                    result = IntResponse::Halt;
+                    return IntResponse::Halt;
                 },
 
-                _ => panic!("bad opcode in run!"),
+                _ => panic!("bad opcode! {} at {}", code, self.ip),
             };
         }
 

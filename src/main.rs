@@ -13,49 +13,70 @@ mod intcoder;
 
 #[derive(Debug)]
 enum Tile {
-    Scaffold,   // 35 - #
-    Space,      // 46 - .
-    NewLine,    // 10 - \n 
-    Robot(i64),    // 10 - \n 
-    Halt
+    Scaffold,       // 35 - #
+    Space,          // 46 - .
+    NewLine,        // 10 - \n 
+    Robot(u8),      // 118 | 60 | 61 | 94
+    Message(u8),    // Anything else positive
+    Halt,
+    Input
 }
 
-fn getTile(response: intcoder::IntResponse) -> Tile {
-    let t = match response {
-        intcoder::IntResponse::Output(i) => i,
-        intcoder::IntResponse::Halt => -2,
-        _ => return Tile::Halt,
-    };
+impl Tile {
+    pub fn new(response: intcoder::IntResponse) -> Tile {
+        let t = match response {
+            intcoder::IntResponse::Output(i) => i,
+            intcoder::IntResponse::Halt => -2,
+            intcoder::IntResponse::Input => return Tile::Input,
+            _ => return Tile::Halt,
+        };
 
-    match t {
-        10 => Tile::NewLine,
-        46 => Tile::Space,
-        35 => Tile::Scaffold,
-        _ => Tile::Robot(t),
+        match t {
+            10 => Tile::NewLine,
+            46 => Tile::Space,
+            35 => Tile::Scaffold,
+            118 | 60 | 61 | 94 => Tile::Robot(t as u8),
+            _ => Tile::Message(t as u8),
+        }
+    }
+
+    pub fn toChar(&self) -> char {
+        'a'
     }
 }
 
-fn game(icoder : &mut intcoder::Intcode) -> i64 {
+
+
+fn game(icoder : &mut intcoder::Intcode) -> bool {
     let mut rows = Vec::new();
     let mut row = Vec::new();
+    let mut message = Vec::new();
 
     loop {
         let r = icoder.run(0);
 
-        let t = match getTile(r) {
-            Tile::Scaffold => "#",
-            Tile::Space => ".",
-            Tile::Robot(i) => ">",
-            Tile::NewLine => "\n",
+        let t = match Tile::new(r) {
+            Tile::Scaffold => '#',
+            Tile::Space => '.',
+            Tile::Robot(i) => i as char,
+            Tile::Input => {
+                println!("waiting for input!");
+                continue;
+            },
+            Tile::NewLine => {
+                rows.push(row);
+                row = Vec::new();
+                continue;
+            },
+            Tile::Message(i) => {
+                message.push(i as char);
+                continue;
+            },
+
             Tile::Halt => break
         };
 
-        if t == "\n" {
-            rows.push(row);
-            row = Vec::new();
-        } else {
-            row.push(t);
-        }
+        row.push(t);
     }
 
     // numbering
@@ -79,43 +100,29 @@ fn game(icoder : &mut intcoder::Intcode) -> i64 {
     println!("");
 
     // graph printing
-    let mut ints = 0;
-    let mut hits = 0;
-    let mut matches = Vec::new();
     for (i, r) in rows.iter().enumerate() {
-        if i > 34 {
-            break;
-        }
         for (j, t) in r.iter().enumerate() {
             print!("{}", t);
-
-            if i < 1 || j < 1  || i >= (rows.len()-1) || j >= (rows[0].len()-1) {
-                continue;
-            }
-
-            if *t == "#" && r[j - 1] == "#" && r[j + 1] == "#" && rows[i-1][j] == "#" && rows[i+1][j] == "#" {
-                ints += i * j;
-                hits += 1;
-                matches.push((j, i));
-            }
         }
         println!("{}", i);
     }
 
-    println!("hits: {}", hits);
-    println!("matches: {:?}", matches);
+    // message printing
+    for c in message {
+        print!("{}", c);
+    }
+    println!("");
 
-    ints as i64
+    true
 }
+
 
 fn main() -> io::Result<()> {
     let now = Instant::now();
     let prog = read("program.txt")?; 
     let mut computer = intcoder::Intcode::new(&prog);
 
-    let blocks = game(&mut computer);
-
-    println!("score: {}", blocks);
+    game(&mut computer);
 
     // TIMING
     let duration = (now.elapsed().subsec_millis() as u128) + 1000*(now.elapsed().as_secs() as u128);
@@ -124,6 +131,7 @@ fn main() -> io::Result<()> {
 
     Ok(())
 }
+
 
 fn read(filename: &str) -> Result<Vec<i64>,std::io::Error> {
     let mut file = File::open(filename)?;

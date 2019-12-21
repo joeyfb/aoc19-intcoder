@@ -2,6 +2,7 @@ pub struct Intcode {
     prog: Vec<i64>,
     ip: usize,
     rel: i64,
+    input: Option<i64>
 }
 
 
@@ -35,21 +36,44 @@ impl Intcode {
         Intcode {
             prog: prog,
             ip: 0,
-            rel: 0
+            rel: 0,
+            input: None
         }
+    }
+
+    /*
+     * Provide input to program, returns true if input was set
+     * and prior input didn't exit
+     */
+    pub fn input(&mut self, num: i64) -> bool {
+        match self.input {
+            Some(i) => return false,
+            None => {
+                self.input = Some(num);
+            }
+        };
+
+        true
+    }
+
+    /*
+     * Run program with provdided input if input doesn't already exist.
+     * Exists to support old code/tests where run utilized argument.
+     */
+    pub fn start(&mut self, input: i64) -> IntResponse {
+        self.input(input);
+
+        self.run()
     }
    
     /*
-     * Run intcode computers and feed INPUT to computer at first request. In various
-     * conditions the program will stop and return an IntResponse, communicating the state
-     * of the program:
+     * Run intcode computer until given condition below is hit and returned:
      *
      * IntResponse::Output(i) -> program has stopped to hand off calculation
-     * IntResponse::Input     -> program needs input to continue (and initially given input was used)
+     * IntResponse::Input     -> program needs input to continue, any provided input used
      * IntResponse::Halt      -> progam has completed
      */
-    pub fn run(&mut self, input: i64) -> IntResponse {
-        let mut input_spent = false;
+    pub fn run(&mut self) -> IntResponse {
         let mut halt = false;
         let mut result = IntResponse::Halt;
 
@@ -57,8 +81,6 @@ impl Intcode {
             let instruction = self.fetch(IntMode::Imm);
             let (code, first_mode, second_mode, third_mode) = self.decode(instruction);
 
-            //println!("{}, {:?}, {:?}, {:?}", code, first_mode, second_mode, third_mode);
-            //println!("{}", self.prog[0]);
 
             match code {
 
@@ -78,13 +100,16 @@ impl Intcode {
                         _ => {}
                     };
 
-                    if input_spent { 
-                        self.ip -= 1;
-                        result = IntResponse::Input;
-                        halt = true;
-                    } else {
-                        self.store(first_mode, input);
-                        input_spent = true;
+                    match self.input {
+                        Some(i) => {
+                            self.store(first_mode, i);
+                            self.input = None;
+                        },
+                        None => {
+                            self.ip -= 1;
+                            result = IntResponse::Input;
+                            halt = true;
+                        }
                     }
                 },
                 4 => {
@@ -106,9 +131,7 @@ impl Intcode {
                 },
 
                 99 => {
-                    println!("at halt");
                     halt = true;
-                    return IntResponse::Halt;
                 },
 
                 _ => panic!("bad opcode! {} at {}", code, self.ip),
@@ -231,7 +254,8 @@ mod tests {
     fn test_immediate_eq() {
         let eq_8 = vec!(3,3,1108,-1,8,3,4,3,99);
         let mut icoder = Intcode::new(&eq_8);
-        let response = icoder.run(8);
+        icoder.input(8);
+        let response = icoder.run();
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -239,7 +263,7 @@ mod tests {
         assert_eq!(answer, 1);
 
         let mut icoder = Intcode::new(&eq_8);
-        let response = icoder.run(0);
+        let response = icoder.start(0);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -248,7 +272,7 @@ mod tests {
         
         let lt_8 = vec!(3,3,1107,-1,8,3,4,3,99);
         let mut icoder = Intcode::new(&lt_8);
-        let response = icoder.run(9);
+        let response = icoder.start(9);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -256,7 +280,7 @@ mod tests {
         assert_eq!(answer, 0);
 
         let mut icoder = Intcode::new(&lt_8);
-        let response = icoder.run(0);
+        let response = icoder.start(0);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -265,7 +289,7 @@ mod tests {
         
         let lt_8 = vec!(3,4,1007,0,-1,4,4,4,99);
         let mut icoder = Intcode::new(&lt_8);
-        let response = icoder.run(9);
+        let response = icoder.start(9);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -273,7 +297,7 @@ mod tests {
         assert_eq!(answer, 1);
 
         let mut icoder = Intcode::new(&lt_8);
-        let response = icoder.run(0);
+        let response = icoder.start(0);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -285,7 +309,7 @@ mod tests {
     fn test_pos_eq() {
         let eq_8 = vec!(3,9,8,9,10,9,4,9,99,-1,8);
         let mut icoder = Intcode::new(&eq_8);
-        let response = icoder.run(8);
+        let response = icoder.start(8);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -293,7 +317,7 @@ mod tests {
         assert_eq!(answer, 1);
 
         let mut icoder = Intcode::new(&eq_8);
-        let response = icoder.run(0);
+        let response = icoder.start(0);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -302,7 +326,7 @@ mod tests {
         
         let lt_8 = vec!(3,9,7,9,10,9,4,9,99,-1,8);
         let mut icoder = Intcode::new(&lt_8);
-        let response = icoder.run(9);
+        let response = icoder.start(9);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -310,7 +334,7 @@ mod tests {
         assert_eq!(answer, 0);
 
         let mut icoder = Intcode::new(&lt_8);
-        let response = icoder.run(0);
+        let response = icoder.start(0);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -323,7 +347,7 @@ mod tests {
                 //     0 1  2 3  4  5   6  7  8   9 10 11  12
         let jmp = vec!(3,11,5,11,12,104,1,99,104,0,99, 0, 8);
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(1);
+        let response = icoder.start(1);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -331,7 +355,7 @@ mod tests {
         assert_eq!(answer, 0);
         
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(2);
+        let response = icoder.start(2);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -339,7 +363,7 @@ mod tests {
         assert_eq!(answer, 0);
 
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(0);
+        let response = icoder.start(0);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -348,7 +372,7 @@ mod tests {
         
         let jmp = vec!(3,11,6,11,12,104,1,99,104,0,99, 0, 8);
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(1);
+        let response = icoder.start(1);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -356,7 +380,7 @@ mod tests {
         assert_eq!(answer, 1);
         
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(2);
+        let response = icoder.start(2);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -364,7 +388,7 @@ mod tests {
         assert_eq!(answer, 1);
 
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(0);
+        let response = icoder.start(0);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -373,7 +397,7 @@ mod tests {
         
         let jmp = vec!(3,12,6,12,15,1,13,14,13,4,13,99,-1,0,1,9);
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(0);
+        let response = icoder.start(0);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -381,7 +405,7 @@ mod tests {
         assert_eq!(answer, 0);
         
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(2);
+        let response = icoder.start(2);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -394,7 +418,7 @@ mod tests {
                 //     0 1  2 3  4  5   6  7  8   9 10 11  12
         let jmp = vec!(3,3,1105,0,8,104,1,99,104,0,99);
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(1);
+        let response = icoder.start(1);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -402,7 +426,7 @@ mod tests {
         assert_eq!(answer, 0);
         
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(2);
+        let response = icoder.start(2);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -410,7 +434,7 @@ mod tests {
         assert_eq!(answer, 0);
 
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(0);
+        let response = icoder.start(0);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -419,7 +443,7 @@ mod tests {
         
         let jmp = vec!(3,3,1106,11,8,104,1,99,104,0,99);
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(1);
+        let response = icoder.start(1);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -427,7 +451,7 @@ mod tests {
         assert_eq!(answer, 1);
         
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(2);
+        let response = icoder.start(2);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -435,7 +459,7 @@ mod tests {
         assert_eq!(answer, 1);
 
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(0);
+        let response = icoder.start(0);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -444,7 +468,7 @@ mod tests {
         
         let jmp = vec!(3,3,1105,-1,9,1101,0,0,12,4,12,99,1);
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(0);
+        let response = icoder.start(0);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -452,7 +476,7 @@ mod tests {
         assert_eq!(answer, 0);
         
         let mut icoder = Intcode::new(&jmp);
-        let response = icoder.run(2);
+        let response = icoder.start(2);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -467,7 +491,7 @@ mod tests {
                         999,1105,1,46,1101,1000,1,20,4,20,1105,1,46,98,99);
 
         let mut icoder = Intcode::new(&long);
-        let response = icoder.run(7);
+        let response = icoder.start(7);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -475,7 +499,7 @@ mod tests {
         assert_eq!(answer, 999);
 
         let mut icoder = Intcode::new(&long);
-        let response = icoder.run(8);
+        let response = icoder.start(8);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -483,7 +507,7 @@ mod tests {
         assert_eq!(answer, 1000);
 
         let mut icoder = Intcode::new(&long);
-        let response = icoder.run(9);
+        let response = icoder.start(9);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -497,7 +521,7 @@ mod tests {
         let mut icoder = Intcode::new(&rel);
 
         for val in rel {
-            let response = icoder.run(0);
+            let response = icoder.start(0);
             let answer = match response {
                 IntResponse::Output(i) => i,
                 _ => -1
@@ -510,7 +534,7 @@ mod tests {
     fn test_bigint() {
         let rel = vec!(1102,34915192,34915192,7,4,7,99,0);
         let mut icoder = Intcode::new(&rel);
-        let response = icoder.run(0);
+        let response = icoder.start(0);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -522,7 +546,7 @@ mod tests {
     fn test_bigint2() {
         let rel = vec!(104,1125899906842624,99);
         let mut icoder = Intcode::new(&rel);
-        let response = icoder.run(0);
+        let response = icoder.start(0);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1
@@ -534,7 +558,7 @@ mod tests {
     fn test_arith_rel() {
         let rel = vec!(109,10,21102,3,3,0,4,10,99);
         let mut icoder = Intcode::new(&rel);
-        let response = icoder.run(0);
+        let response = icoder.start(0);
         let answer = match response {
             IntResponse::Output(i) => i,
             _ => -1

@@ -1,16 +1,74 @@
 use std::fs::File;
 use std::io::{self, prelude::*};
 use std::time::{Instant};
-use std::collections::HashMap;
-use std::thread;
 use std::time;
-use termion;
-use termion::input::TermRead;
-use termion::raw::IntoRawMode;
-use termion::{clear};
 
 mod intcoder;
-mod asciicoder;
+mod board;
+
+pub fn game(icoder : &mut intcoder::Intcode) -> bool {
+    let comma = ',' as u8;
+    let mut isComma = false;
+
+    let mut input = vec!(
+        // main
+        'A', 'B', '\n',
+
+        // A                     <||
+        'L', '4', 'L', '4', 'L', '6', 'R', '8', 'L', '8', '\n', 
+
+        // B            ||>
+        'L', '6', 'R', '8', 'R', '8', 'R', '1', '0', 'L', '6', '\n', 
+
+        // C
+        'L', '1', '2', 'R', '6', 'R', '1', '0', 'L', '6', '\n',
+
+        // Videofeed
+        'N', '\n',
+        // Padding
+        '1', '\n',
+    );
+    let mut last = 1;
+
+    loop {
+        if input[0] == '\n' {
+            isComma = false;
+        }
+
+        match icoder.run() {
+            intcoder::IntResponse::Output(i) => {
+                last = i;
+                let c = i as u8;
+                print!("{}", c as char);
+            },
+
+            intcoder::IntResponse::Input => {
+                let i = match isComma {
+                    true => comma,
+                    false => input.remove(0) as u8
+                };
+
+                print!("{}", i as char);
+                icoder.input(i as i64);
+
+                if i as char != '\n' {
+                    isComma =  ! isComma;
+                }
+
+                if (i as char).is_digit(10) && input[0].is_digit(10) {
+                    isComma = false;
+                }
+
+                continue;
+            },
+            intcoder::IntResponse::Halt => break,
+        };
+    }
+
+    println!("{}", last);
+
+    true
+}
 
 
 fn main() -> io::Result<()> {
@@ -18,7 +76,7 @@ fn main() -> io::Result<()> {
     let prog = read("program.txt")?; 
     let mut computer = intcoder::Intcode::new(&prog);
 
-    asciicoder::game(&mut computer);
+    game(&mut computer);
 
     // TIMING
     let duration = (now.elapsed().subsec_millis() as u128) + 1000*(now.elapsed().as_secs() as u128);

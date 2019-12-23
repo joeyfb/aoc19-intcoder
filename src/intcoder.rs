@@ -31,7 +31,7 @@ impl Intcode {
         // Shouldn't just niavely add space to end, ideally
         // use checks in self.store/self.fetch to see if we
         // exceed end of array then pad zeroes to fit it
-        prog.resize(prog.len() + 3000, 0);
+        prog.resize(prog.len() + 5000, 0);
 
         Intcode {
             prog: prog,

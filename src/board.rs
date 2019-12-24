@@ -36,11 +36,19 @@ const string : &str = "000000000011111000000000000000000000000000000
 000000000000000000000000000000000010001000000
 000000000000000000000000000000000011111000000";
 
+#[derive(Hash, Eq, PartialEq, Debug)]
 struct Coor {
     x: usize,
     y: usize,
 }
 
+impl Coor {
+    pub fn clone(&self) -> Coor {
+        Coor { x: self.x, y: self.y }
+    }
+}
+
+#[derive(Hash, Eq, PartialEq, Debug)]
 struct Edge {
     to: Coor,
     len: usize,
@@ -48,9 +56,8 @@ struct Edge {
 
 }
 
-const start: (usize, usize) = (15, 0);
-const end: (usize, usize) = (12, 30);
-
+const START : Coor = Coor{x: 15, y: 0};
+const END : Coor = Coor{x: 12, y: 30};
 
 fn make(board: &str) -> Vec<Vec<bool>> {
     board.lines().map(
@@ -61,7 +68,7 @@ fn make(board: &str) -> Vec<Vec<bool>> {
 }
 
 
-fn corners(board: &Vec<Vec<bool>>) -> Vec<(usize, usize)> {
+fn corners(board: &Vec<Vec<bool>>) -> Vec<Coor> {
     let mut matches = Vec::new();
 
     for (y, line) in board.iter().enumerate() {
@@ -72,7 +79,7 @@ fn corners(board: &Vec<Vec<bool>>) -> Vec<(usize, usize)> {
             }
 
             if is_corner(board, x, y) {
-                matches.push( (x,y) );
+                matches.push( Coor{x,y} );
             }
 
         }
@@ -80,6 +87,7 @@ fn corners(board: &Vec<Vec<bool>>) -> Vec<(usize, usize)> {
 
     matches
 }
+
 
 /*
  * Expects cell to be path. Returns true if turn could be needed
@@ -127,16 +135,18 @@ fn is_corner(board: &Vec<Vec<bool>>, x: usize, y: usize) -> bool {
     corner
 }
 
-fn display(board: &Vec<Vec<bool>>, corners: &Vec<(usize, usize)>) {
+
+fn display(board: &Vec<Vec<bool>>, corners: &Vec<Coor>) {
     for (y, line) in board.iter().enumerate() {
 
         for (x, cell) in line.iter().enumerate() {
+            let c = Coor{x,y};
 
-            if (x,y) == end {
+            if c == END {
                 print!("e");
-            } else if (x,y) == start {
+            } else if c == START {
                 print!("s");
-            } else if corners.contains(&(x,y)) {
+            } else if corners.contains(&c) {
                 print!("o");
             } else if *cell {
                 print!("#");
@@ -148,9 +158,83 @@ fn display(board: &Vec<Vec<bool>>, corners: &Vec<(usize, usize)>) {
     }
 }
 
-fn adj_list(board: &Vec<Vec<bool>>, corners: &Vec<(usize, usize)>)
-    -> HashMap<Coor, Edge> {
-        HashMap::new()
+
+fn adj_list(board: &Vec<Vec<bool>>, corners: &Vec<Coor>) -> HashMap<Coor, Edge>
+{
+    let mut map = HashMap::new();
+
+    for p1 in corners {
+        for p2 in corners {
+            let same = p1 == p2;
+            let no_line = p1.x != p2.x && p1.y != p2.y;
+
+            if same || no_line {
+                continue;
+            }
+            let length = dist(board, p1, p2);
+
+
+            if length > 0 {
+                map.insert(p1.clone(), Edge{to: p2.clone(), len: length, visited: false} );
+            }
+        }
+    }
+
+    map
+}
+
+fn dist(board: &Vec<Vec<bool>>, from: &Coor, to: &Coor) -> usize
+{
+    let mut x = from.x;
+    let mut y = from.y;
+    let mut end = 0;
+
+    let mut is_vertical = from.x == to.x;
+    let mut length = 0;
+    let grow;
+
+    if is_vertical {
+        grow = to.y > y;
+
+        if to.y > y {
+            length = to.y - y;
+        } else {
+            length = y - to.y;
+        }
+    } else {
+        grow = to.x > x;
+
+        if to.x > x {
+            length = to.x - x;
+        } else {
+            length = x - to.x;
+        }
+    }
+
+    for i in 0..length {
+        let mut dx = x;
+        let mut dy = y;
+
+        if is_vertical {
+            if grow {
+                dy = y + i;
+            } else {
+                dy = y - i;
+            }
+        } else {
+            if grow {
+                dx = x + i;
+            } else {
+                dx = x - i;
+            }
+        }
+
+        if ! board[dy][dx] {
+            return 0;
+        }
+    }
+
+    length
 }
 
 
@@ -161,15 +245,19 @@ mod tests {
     #[test]
     fn test_read() {
         let b = make(string);
-        let cs = corners(&b);
+        let mut cs = corners(&b);
 
-        cs.push(start);
-        cs.push(end);
+        cs.push(START);
+        cs.push(END);
 
         println!("{}", string);
         display(&b, &cs);
 
+        let al = adj_list(&b, &cs);
+
         println!("{:?}", cs);
+
+        println!("{:?}", al);
 
         assert_eq!(false, true);
     }

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 #[derive(Hash, Eq, PartialEq, Debug)]
 struct Coor {
@@ -16,14 +17,12 @@ impl Coor {
 struct Edge {
     to: Coor,
     len: usize,
-    visited: bool
-
 }
 
 pub struct Board {
     board: Vec<Vec<bool>>,
     corners: Vec<Coor>,
-    graph: HashMap<Coor, Edge>,
+    graph: HashMap<Coor, Vec<Edge>>,
     start: Coor,
     end: Coor,
 }
@@ -74,6 +73,36 @@ impl Board {
             }
             println!("");
         }
+    }
+
+    pub fn route(&mut self) -> Vec<&Coor> {
+        let mut stack = vec!(&self.start);
+        let mut visited : Vec<&Coor> = vec!(&self.start);
+
+        loop {
+            let curr = match stack.pop() {
+                Some(x) => x,
+                None => break
+            };
+
+            if ! self.graph.contains_key(curr) {
+                println!("{:?}", curr);
+                continue;
+            }
+            let edges = &self.graph[curr];
+
+            for edge in edges {
+                let dest = &edge.to;
+                if ! visited.contains(&dest) {
+                    stack.push(dest);
+                    visited.push(dest);
+                    continue;
+                }
+            }
+        }
+
+        // reset visited bool
+        visited
     }
 
     fn corners(board: &Vec<Vec<bool>>) -> Vec<Coor> {
@@ -142,23 +171,43 @@ impl Board {
         corner
     }
 
-    fn graph(board: &Vec<Vec<bool>>, corners: &Vec<Coor>) -> HashMap<Coor, Edge>
+    fn graph(board: &Vec<Vec<bool>>, corners: &Vec<Coor>) -> HashMap<Coor, Vec<Edge>>
     {
-        let mut map = HashMap::new();
+        let mut map : HashMap<Coor, Vec<Edge>> = HashMap::new();
 
         for p1 in corners {
             for p2 in corners {
                 let same = p1 == p2;
                 let no_line = p1.x != p2.x && p1.y != p2.y;
 
+                if p1 == &(Coor{x:15, y:0}) && p2.y == 0 {
+                    println!("-----!------");
+                    println!("{:?}", p1);
+                    println!("{:?}", p2);
+                }
+
                 if same || no_line {
                     continue;
                 }
+
+                if p1 == &(Coor{x:15, y:0}) && p2.y == 0 {
+                    println!("no_line: {:?}", no_line);
+                }
                 let length = Board::dist(board, p1, p2);
 
+                if p1 == &(Coor{x:15, y:0}) && p2.y == 0 {
+                    println!("len: {:?}", length);
+                }
 
-                if length > 0 {
-                    map.insert(p1.clone(), Edge{to: p2.clone(), len: length, visited: false} );
+                if length == 0 {
+                    continue;
+                }
+
+                if map.contains_key(p1) {
+                    let list = map.get_mut(p1).unwrap();
+                    list.push( Edge{to: p2.clone(), len: length} );
+                } else {
+                    map.insert(p1.clone(), vec!(Edge{to: p2.clone(), len: length}) );
                 }
             }
         }
@@ -168,12 +217,12 @@ impl Board {
 
     fn dist(board: &Vec<Vec<bool>>, from: &Coor, to: &Coor) -> usize
     {
-        let mut x = from.x;
-        let mut y = from.y;
-        let mut end = 0;
+        let x = from.x;
+        let y = from.y;
+        let end = 0;
 
-        let mut is_vertical = from.x == to.x;
-        let mut length = 0;
+        let is_vertical = from.x == to.x;
+        let length;
         let grow;
 
         if is_vertical {
@@ -194,7 +243,7 @@ impl Board {
             }
         }
 
-        for i in 0..length {
+        for i in 1..length {
             let mut dx = x;
             let mut dy = y;
 
@@ -210,10 +259,6 @@ impl Board {
                 } else {
                     dx = x - i;
                 }
-            }
-
-            if ! board[dy][dx] {
-                return 0;
             }
         }
 
@@ -265,9 +310,11 @@ mod tests {
 000000000000000000000000000000000010001000000
 000000000000000000000000000000000011111000000";
 
-        let b = Board::new(string, (15, 0), (12, 30));
+        let mut b = Board::new(string, (15, 0), (12, 30));
 
         b.display();
+
+        println!("{:?}", b.route());
 
         assert_eq!(false, true);
 

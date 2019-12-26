@@ -75,9 +75,9 @@ impl Board {
         }
     }
 
-    pub fn route(&mut self) -> Vec<&Coor> {
+    pub fn route(&mut self) -> Vec<Coor> {
         let mut stack = vec!(&self.start);
-        let mut visited : Vec<&Coor> = vec!(&self.start);
+        let mut visited : Vec<Coor> = vec!(self.start.clone());
 
         loop {
             let curr = match stack.pop() {
@@ -86,23 +86,144 @@ impl Board {
             };
 
             if ! self.graph.contains_key(curr) {
-                println!("{:?}", curr);
                 continue;
             }
             let edges = &self.graph[curr];
 
+            let mut max = 0;
+            let mut biggest = curr;
             for edge in edges {
                 let dest = &edge.to;
-                if ! visited.contains(&dest) {
-                    stack.push(dest);
-                    visited.push(dest);
-                    continue;
+                if ! visited.contains(&dest) && edge.len > max {
+                    max = edge.len;
+                    biggest = &edge.to;
                 }
             }
+
+            if max > 0 {
+                stack.push(biggest);
+                visited.push(biggest.clone());
+                self.visited_push(&mut visited, &curr, biggest, max);
+            }
+        }
+
+        let mut prev = &visited.remove(0);
+        enum Dir {
+            U,D,L,R
+        };
+        let mut facing = Dir::R;
+        for next in &visited {
+            let is_vertical = prev.x == next.x;
+            let is_forward;
+            let len;
+
+            if is_vertical {
+                is_forward = prev.y < next.y;
+
+                if is_forward {
+                    len = next.y - prev.y;
+                } else {
+                    len = prev.y - next.y;
+                }
+            } else {
+                is_forward = prev.x < next.x;
+
+                if is_forward {
+                    len = next.x - prev.x;
+                } else {
+                    len = prev.x - next.x;
+                }
+            }
+
+            match facing {
+                Dir::U => {
+                    if is_forward && is_vertical {
+                    } else if is_vertical {
+                        print!("R,R,");
+                    } else if is_forward {
+                        print!("R,");
+                    } else {
+                        print!("L,");
+                    }
+                },
+                Dir::D => {
+                    if is_forward && is_vertical {
+                        print!("R,R,");
+                    } else if is_vertical {
+                    } else if is_forward {
+                        print!("L,");
+                    } else {
+                        print!("R,");
+                    }
+                },
+                Dir::L => {
+                    if is_forward && is_vertical {
+                        print!("R,");
+                    } else if is_vertical {
+                        print!("L,");
+                    } else if is_forward {
+                        print!("R,R,");
+                    } else {
+                    }
+                },
+                Dir::R => {
+                    if is_forward && is_vertical {
+                        print!("L,");
+                    } else if is_vertical {
+                        print!("R,");
+                    } else if is_forward {
+                    } else {
+                        print!("R,R,");
+                    }
+                }
+            };
+
+            if is_forward && is_vertical {
+                facing = Dir::U;
+            } else if is_vertical {
+                facing = Dir::D;
+            } else if is_forward {
+                facing = Dir::R;
+            } else {
+                facing = Dir::L;
+            }
+
+            print!("{},", len);
+            
+            prev = next;
         }
 
         // reset visited bool
         visited
+    }
+
+    fn visited_push(&self, visited: &mut Vec<Coor>, from: &Coor, to: &Coor, len: usize) {
+        let is_vertical = from.x == to.x;
+        let mut x = from.x;
+        let mut y = from.y;
+
+        if x > to.x {
+            x = to.x;
+        }
+
+        if y > to.y {
+            y = to.y;
+        }
+
+        for i in 1..len {
+            if is_vertical {
+                y += 1;
+            } else {
+                x += 1;
+            }
+
+            let maybe = Coor{x, y};
+
+            if self.graph.contains_key(&maybe) {
+                println!("added connection! {:?}", maybe);
+                visited.push(maybe.clone());
+            }
+        }
     }
 
     fn corners(board: &Vec<Vec<bool>>) -> Vec<Coor> {
@@ -180,24 +301,11 @@ impl Board {
                 let same = p1 == p2;
                 let no_line = p1.x != p2.x && p1.y != p2.y;
 
-                if p1 == &(Coor{x:15, y:0}) && p2.y == 0 {
-                    println!("-----!------");
-                    println!("{:?}", p1);
-                    println!("{:?}", p2);
-                }
-
                 if same || no_line {
                     continue;
                 }
 
-                if p1 == &(Coor{x:15, y:0}) && p2.y == 0 {
-                    println!("no_line: {:?}", no_line);
-                }
                 let length = Board::dist(board, p1, p2);
-
-                if p1 == &(Coor{x:15, y:0}) && p2.y == 0 {
-                    println!("len: {:?}", length);
-                }
 
                 if length == 0 {
                     continue;
@@ -274,43 +382,44 @@ mod tests {
 
     #[test]
     fn test_read() {
-        let string : &str = "000000000011111000000000000000000000000000000
-000000000010000000000000000000000000000000000
-000000000010000000000000000000000000000000000
-000000000010000000000000000000000000000000000
-000000000011111110000000000000000000000000000
+        let string : &str = "000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000
+000000000000000000000000000000000000000000000
+000000000000000010000000000000000000000000000
 000000000000000010000000000000000000000000000
 000000000000000010000000111111111111100000000
 000000000000000010000000100000000000100000000
-111111100000000010000000100000000000100000000
-100000100000000010000000100000000000100000000
-100000100000000010111110100000111111111000000
-100000100000000010100010100000100000101000000
-100000100000001111111111101111111111101000000
-100000100000001010100010001000100000001000000
-100000100000001011111110001000100000001000000
-100000100000001000100000001000100000001000000
-100000101111111111101111111111100000001000000
-100000101000001000001000001000000000001000000
+000000000000000010000000100000000000100000000
+000000000000000010000000100000000000100000000
+000000000000000010111110100000111111111000000
+000000000000000010100010100000100000101000000
+000000000000001111111111101111111111101000000
+000000000000001010100010001000100000001000000
+000000000000001011111110001000100000001000000
+000000000000001000100000001000100000001000000
+000000001111111111101111111111100000001000000
+000000001000001000001000001000000000001000000
 100000111111111000001000001000000000001000000
 100000001000000000001000001000000000001000000
-111111101000000000001000001111111000001111111
-000000101000000000001000000000001000000000001
-000000101111111111111000000000001000000000001
-000000100000000000000000000000001000000000001
-000000100000000000000000000000001000000000001
-000000100000000000000000000000001000000000001
-000000100000000000000000000000001000000000001
-000000100000000000000000000000001000000000001
-000000100000000000000000000000001011111111111
-000000100000000000000000000000001010000000000
-000000111111100000000000000000001111111000000
+000000001000000000001000001111111000001111111
+000000001000000000001000000000001000000000001
+000000001111111111111000000000001000000000001
+000000000000000000000000000000001000000000001
+000000000000000000000000000000001000000000001
+000000000000000000000000000000001000000000001
+000000000000000000000000000000001000000000001
+000000000000000000000000000000001000000000001
+000000000000000000000000000000001011111111111
+000000000000000000000000000000001010000000000
+000000000000000000000000000000001111111000000
 000000000000000000000000000000000010001000000
 000000000000000000000000000000000010001000000
 000000000000000000000000000000000010001000000
 000000000000000000000000000000000011111000000";
 
-        let mut b = Board::new(string, (15, 0), (12, 30));
+        //let mut b = Board::new(string, (15, 0), (12, 30));
+        let mut b = Board::new(string, (16, 4), (6, 17));
 
         b.display();
 

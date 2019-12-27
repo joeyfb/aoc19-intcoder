@@ -1,0 +1,56 @@
+to pad
+
+N > N > E > S
+
+Too heavy           Too light
+/Dark Matter       <Weather Machine
+|whirled peas      <Fixed point 
+|fixed point       /Whirled peas
+|prime number      \Fixed Point
+\weather machine   /Whirled peas
+/Dark Matter       |Fixed Point
+|whirled peas      \Weather machine
+|fixed point       
+|prime number       
+\weather machine    
+<dark matter
+
+- coin
+- whirled peas
+- fixed point
+- prime number
+- antenna
+
+- weather machine
+- astrolabe
+
+
+
+map
+
+.............   - hOt chocolate fountain STICKS YOU
+.............   - B reach
+.....NC......   - C heckpoint
+.....HD......   - H olodeck
+.....SOWR....   - D oor
+.....BIGTLK..   - S tart
+.....E.......   - s Ick bay
+.......|.....   - E ngineer
+......AC.....   - G iftwrapper
+.......L-....   - hall Way
+.......S-....   - Telescope WARNING quits game
+.............   - stabLes
+.............   - K itchen
+.............   - coRridor WARNING infinite loop
+
+DON'T TAKE
+- PHOTONS
+- MOLTEN Lava
+
+had
+prime number
+weather machine
+fixed point
+whirled peas
+
+got 10

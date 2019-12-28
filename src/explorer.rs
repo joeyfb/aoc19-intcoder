@@ -33,6 +33,7 @@ impl Tile {
     }
 }
 
+#[derive(Debug)]
 enum Dir {
     N, S, E, W
 }
@@ -79,7 +80,7 @@ impl Dir {
 struct Space {
     coor: (usize, usize),
     tile: Tile,
-    conns: Option<Box<(Node, Node, Node, Node)>>,
+    conns: Option<Box<[Node; 4]>>,
 }
 
 // some or none node? to explore or dead
@@ -98,6 +99,32 @@ impl Node {
                 conns: None,
             } )
         }
+    }
+
+    pub fn char(&self) -> char {
+        match self {
+            Node::Some(space) => space.tile.char(),
+            Node::None => ' '
+        }
+    }
+
+    pub fn unseen(&self) -> bool {
+        let mut unseen = false;
+
+        if let Node::Some(space) = self {
+            if let conns = &space.conns {
+                unseen = true;
+            }
+
+            match space.tile {
+                Tile::Wall => {
+                    unseen = false;
+                },
+                _ => {}
+            };
+        }
+
+        unseen
     }
 }
 
@@ -143,10 +170,27 @@ impl<'a> Explorer<'a> {
 
     pub fn run(&mut self) -> bool {
         let mut coor = self.start;
+        let mut space = self.explore(coor.0, coor.1);
+        //let mut directions = self.explorable(&space);
+        let mut path = vec!(space);
 
-        loop {
+        while let cur = path.remove(0) {
+            // choose from points in cur next move
+            if let Some(dir) = self.decide(&cur) {
+                println!("{:?}", dir);
+                self.icoder.input(dir.int());
+                self.icoder.run();
+                coor = dir.go(coor);
+                let mut space = self.explore(coor.0, coor.1);
+                path.push(space);
+            } else {
+                continue;
+            }
+
             let mut space = self.explore(coor.0, coor.1);
-            let mut directions = self.explorable(&space);
+
+            self.print();
+            panic!("sdfa");
 
             // store 1's as potential routes to explor on stack
                 // probably just coordinates
@@ -156,8 +200,6 @@ impl<'a> Explorer<'a> {
                 // if chose direction, add direction to PATH
                 // routes branch from PATH, need to pop from path to reverse back to where paths
                 // were that need to explore
-
-            self.path.push(space);
         }
 
         // after all routes are explored display map
@@ -165,63 +207,29 @@ impl<'a> Explorer<'a> {
         true
     }
 
-    fn explorable(&self, space: &Space) -> (bool, bool, bool, bool) {
-        let mut valids = (false, false, false, false);
+    fn decide(&self, space: &Space) -> Option<Dir> {
 
-        match space.conns {
-            None => valids,
-            Some(nodes) => {
-                for i in 0..4 {
-                    let node = match i {
-                        0 => nodes.0,
-                        1 => nodes.1,
-                        2 => nodes.2,
-                        3 => nodes.3,
-                        _ => break
-                    };
-
-                    match node {
-                        Node::Some(space) => {
-                            match space.conns {
-                                Some(_i) => continue,
-                                None => {},
-                            };
-                            
-                            match space.tile {
-                                Tile::Path | Tile::Oxy => {
-                                    valids[i] = true;
-                                },
-                                _ => continue,
-                            }
-                        },
-                        Node::None => continue
-                    }
-
+        if let Some(conns) = &space.conns {
+            for (i, node) in conns.iter().enumerate() {
+                if node.unseen() {
+                    return Some(Dir::new((i+1) as i64));
                 }
             }
         }
-        
 
-        match space.conns {
-            Some(nodes) => {
-                for i in 0..4 {
-                    match nodes[i] {
-                        None => {},
-                        Some(space) => {
-                            match space.tile {
-                                Tile::Space => {
+        None
+    }
 
-                                },
-                                _ => {},
-                            }
-                        }
-                    };
-                }
-            },
-            None => {
-                // go back
+    fn explorable(&self, space: &Space) -> [bool; 4] {
+        let mut valids = [false; 4];
+
+        if let Some(nodes) = &space.conns {
+            for i in 0..4 {
+                valids[i] = nodes[i].unseen();
             }
-        };
+        }
+
+        valids
     }
 
     /*
@@ -252,7 +260,9 @@ impl<'a> Explorer<'a> {
         Space { 
             coor: (x, y),
             tile: self.map[y][x].clone(),
-            conns: Some(Box::new((nodes[0].copy(), nodes[1].copy(), nodes[2].copy(), nodes[3].copy())))
+            conns: Some(
+                    Box::new( [nodes[0].copy(), nodes[1].copy(), nodes[2].copy(), nodes[3].copy()] )
+                )
         }
     }
 

@@ -2,7 +2,6 @@
 pub enum Tile {
     Space,
     Start,
-    Droid,
     Oxy,
     Wall,
     Path,
@@ -23,7 +22,6 @@ impl Tile {
         match self {
             Tile::Start => 'S',
             Tile::Space => ' ',
-            Tile::Droid => 'D',
             Tile::Oxy   => 'O',
             Tile::Wall  => '#',
             Tile::Path  => '.',

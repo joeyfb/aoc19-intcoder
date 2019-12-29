@@ -3,15 +3,13 @@ use crate::explorer::dir::{Dir};
 
 
 struct Space {
-    coor: (usize, usize),
     tile: Option<Tile>,
     visited: bool,
 }
 
 impl Space {
-    pub fn new(x: usize, y: usize) -> Space {
+    pub fn new() -> Space {
         Space {
-            coor: (x ,y),
             tile: None,
             visited: false
         }
@@ -25,7 +23,6 @@ impl Space {
     }
 
     pub fn unseen(&self) -> bool {
-        let is_unseen = false;
         let mut not_wall = false;
 
         if let Some(tile) = &self.tile {
@@ -45,7 +42,6 @@ impl Space {
 pub struct Map {
     map:    Vec<Vec<Space>>,
     curr:   (usize, usize),
-    start:  (usize, usize),
     oxy:    (usize, usize),
 }
 
@@ -53,10 +49,10 @@ impl Map {
     pub fn new(size: usize) -> Map {
         let mut map: Vec<Vec<Space>> = Vec::new();
 
-        for i in 0..size {
+        for _i in 0..size {
             let mut row = Vec::new();
-            for j in 0..size {
-                row.push(Space::new(j,i));
+            for _j in 0..size {
+                row.push(Space::new());
             }
             map.push(row);
         }
@@ -67,7 +63,6 @@ impl Map {
         Map {
             map,
             curr: (size/2, size/2),
-            start: (size/2, size/2),
             oxy: (0, 0),
         }
     }
@@ -81,6 +76,13 @@ impl Map {
         let (x, y) = dir.go(self.curr);
 
         if self.map[y][x].visited { return };
+
+        match tile {
+            Tile::Oxy => {
+                self.oxy = self.curr;
+            },
+            _ => {}
+        };
 
         if self.map.len() > x && self.map.len() > y {
             self.map[y][x].tile = Some(tile.clone());
@@ -98,6 +100,8 @@ impl Map {
             }
             println!("");
         }
+
+        println!("oxy: {:?}", self.oxy);
     }
 
     pub fn explorable(&self) -> [bool; 4] {

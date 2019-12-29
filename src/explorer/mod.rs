@@ -23,31 +23,40 @@ impl<'a> Explorer<'a> {
 
     pub fn run(&mut self) -> bool {
         let mut path = Vec::new();
+        let mut longest = 0;
 
         loop {
             for (i, tile) in self.robot.explore().iter().enumerate() {
                 self.map.set(dir::Dir::new((i+1) as i64), tile);
             }
 
-            match self.decide() {
-                Some(g) => {
-                    let dir = g.0;
-                    self.robot.go(dir);
-                    self.map.go(dir);
-                    path.push(g);
-                },
-                None => {
-                    if let Some(g) = path.pop() {
-                        let dir = g.0;
+            if path.len() > longest {
+                longest = path.len();
+            }
 
-                        self.robot.go(dir.rev());
-                        self.map.go(dir.rev());
-                    } else {
-                        break;
-                    }
-                }
-            };
+            // go a new way if we can
+            if let Some(g) = self.decide() {
+                let dir = g.0;
+
+                self.robot.go(dir);
+                self.map.go(dir);
+
+                path.push(g);
+
+            // reverse otherwise
+            } else if let Some(g) = path.pop() {
+                let dir = g.0;
+
+                self.robot.go(dir.rev());
+                self.map.go(dir.rev());
+
+            // if we can't reverse anymore, stop
+            } else {
+                break;
+            }
         }
+
+        println!("longest path from start: {}", longest);
 
         true
     }

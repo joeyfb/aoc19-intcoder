@@ -77,19 +77,33 @@ impl Dir {
     }
 }
 
-struct Space {
+struct Space<'a> {
     coor: (usize, usize),
     tile: Tile,
-    conns: Option<Box<[Node; 4]>>,
+    conns: Option<Box<[&'a Node<'a>; 4]>>,
 }
 
 // some or none node? to explore or dead
-enum Node {
+enum Node<'a> {
     None,
-    Some( Space ),
+    Some( Space<'a> ),
 }
 
-impl Node {
+impl<'a> Node<'a> {
+    pub fn new<'b>(x: usize, y: usize) -> Node<'b> {
+        Node::Some(
+            Space {
+                coor: (x, y),
+                tile: Tile::Space,
+                conns: None
+            }
+        )
+    }
+
+    pub fn attach(node: &Node, dir: Dir) -> bool {
+        true    
+    }
+
     pub fn copy(&self) -> Node {
         match self {
             Node::None => Node::None,
@@ -131,21 +145,21 @@ impl Node {
 pub struct Explorer<'a> {
     icoder: &'a mut Intcode,
     start:  (usize, usize),
-    oxy:    Option<Node>,
-    map:    Vec<Vec<Tile>>,
-    path:   Vec<Space>
+    oxy:    Option<Node<'a>>,
+    map:    Vec<Vec<Node<'a>>>,
+    null:   Node<'a>
 }
 
 impl<'a> Explorer<'a> {
     pub fn new(icoder : &mut Intcode) -> Explorer {
         let size = 60;
         let mut Null = Node::None;
-        let mut map: Vec<Vec<Tile>> = Vec::new();
+        let mut map: Vec<Vec<Node>> = Vec::new();
 
         for i in 0..size {
             let mut row = Vec::new();
             for j in 0..size {
-                row.push(Tile::Space);
+                row.push(Node::new(j,i));
             }
             map.push(row);
         }
@@ -155,7 +169,7 @@ impl<'a> Explorer<'a> {
             map,
             start: (size/2, size/2),
             oxy: None,
-            path: Vec::new(),
+            null: Node::None
         }
     }
 
@@ -170,19 +184,19 @@ impl<'a> Explorer<'a> {
 
     pub fn run(&mut self) -> bool {
         let mut coor = self.start;
-        let mut space = self.explore(coor.0, coor.1);
+        self.explore(coor.0, coor.1);
         //let mut directions = self.explorable(&space);
-        let mut path = vec!(space);
+        let mut path = vec!(coor.clone());
 
         while let cur = path.remove(0) {
             // choose from points in cur next move
-            if let Some(dir) = self.decide(&cur) {
+            if let Some(dir) = self.decide(cur) {
                 println!("{:?}", dir);
                 self.icoder.input(dir.int());
                 self.icoder.run();
                 coor = dir.go(coor);
-                let mut space = self.explore(coor.0, coor.1);
-                path.push(space);
+                self.explore(coor.0, coor.1);
+                path.push(coor.clone());
             } else {
                 continue;
             }
@@ -207,12 +221,13 @@ impl<'a> Explorer<'a> {
         true
     }
 
-    fn decide(&self, space: &Space) -> Option<Dir> {
-
-        if let Some(conns) = &space.conns {
-            for (i, node) in conns.iter().enumerate() {
-                if node.unseen() {
-                    return Some(Dir::new((i+1) as i64));
+    fn decide(&self, coor: (usize, usize)) -> Option<Dir> {
+        if let Node::Some(space) = &self.map[coor.1][coor.0] {
+            if let Some(conns) = &space.conns {
+                for (i, node) in conns.iter().enumerate() {
+                    if node.unseen() {
+                        return Some(Dir::new((i+1) as i64));
+                    }
                 }
             }
         }
@@ -236,7 +251,7 @@ impl<'a> Explorer<'a> {
      * Droid explors current square, returns information on surrounding spaces
      * as Space struct.
      */
-    fn explore(&mut self, x: usize, y: usize) -> Space {
+    fn explore(&mut self, x: usize, y: usize) {
         let mut nodes = Vec::new();
 
         for i in 1..5 {
@@ -252,17 +267,18 @@ impl<'a> Explorer<'a> {
                 _ => panic!("invalid tile response!")
             };
 
-            self.map[coor.1][coor.0] = tile.clone();
-            
-            nodes.push( Node::Some( Space{ tile, coor, conns: None } ) );
+            if let Node::Some(space) = self.map[coor.1][coor.0] {
+                space.tile = tile.clone();
+                nodes.push( &self.map[coor.1][coor.0] );
+            } else {
+                nodes.push( &self.null );
+            }
         }
 
-        Space { 
-            coor: (x, y),
-            tile: self.map[y][x].clone(),
-            conns: Some(
-                    Box::new( [nodes[0].copy(), nodes[1].copy(), nodes[2].copy(), nodes[3].copy()] )
-                )
+        if let Node::Some(space) = self.map[y][x] {
+            space.conns = Some(
+                Box::new( [nodes[0], nodes[1], nodes[2], nodes[3]] )
+            );
         }
     }
 

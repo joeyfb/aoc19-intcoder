@@ -67,6 +67,14 @@ impl Map {
         }
     }
 
+    pub fn reset(&mut self) {
+        for y in 0..self.map.len() {
+            for x in 0..self.map.len() {
+                self.map[y][x].visited = false;
+            }
+        }
+    }
+
     pub fn go(&mut self, dir: Dir) {
         self.curr = dir.go(self.curr);
         self.map[self.curr.1][self.curr.0].visited = true;

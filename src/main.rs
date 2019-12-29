@@ -12,7 +12,7 @@ fn main() -> io::Result<()> {
     let mut computer = intcoder::Intcode::new(&prog);
     let mut exp = explorer::Explorer::new(&mut computer);
 
-    exp.run();
+    exp.run(true);
     exp.print();
 
     // TIMING

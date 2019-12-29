@@ -21,9 +21,10 @@ impl<'a> Explorer<'a> {
         self.map.print();
     }
 
-    pub fn run(&mut self) -> bool {
+    pub fn run(&mut self, oxy_trace: bool) -> bool {
         let mut path = Vec::new();
         let mut longest = 0;
+        let mut has_reset = false;
 
         loop {
             for (i, tile) in self.robot.explore().iter().enumerate() {
@@ -38,10 +39,21 @@ impl<'a> Explorer<'a> {
             if let Some(g) = self.decide() {
                 let dir = g.0;
 
-                self.robot.go(dir);
+                let tile = self.robot.go(dir);
                 self.map.go(dir);
-
                 path.push(g);
+
+                match tile {
+                    tile::Tile::Oxy => {
+                        if ! has_reset {
+                            self.map.reset();
+                            path = Vec::new();
+                            longest = 0;
+                            has_reset = true;
+                        }
+                    },
+                    _ => {}
+                };
 
             // reverse otherwise
             } else if let Some(g) = path.pop() {

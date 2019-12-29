@@ -22,44 +22,51 @@ impl<'a> Explorer<'a> {
     }
 
     pub fn run(&mut self) -> bool {
-        for (i, tile) in self.robot.explore().iter().enumerate() {
-            self.map.set(dir::Dir::new((i+1) as i64), tile);
-        }
-
         let mut path = Vec::new();
 
-        match self.decide() {
-            Some(dir) => {
-                println!("dir: {:?}", dir);
-                path.push(dir);
-            },
-            None => {}
-        };
-
-        while let Some(dir) = path.pop() {
-            self.robot.go(dir);
-            self.map.go(dir);
+        loop {
             for (i, tile) in self.robot.explore().iter().enumerate() {
                 self.map.set(dir::Dir::new((i+1) as i64), tile);
             }
 
             match self.decide() {
-                Some(dir) => path.push(dir),
-                None => {}
+                Some(g) => {
+                    let dir = g.0;
+                    self.robot.go(dir);
+                    self.map.go(dir);
+                    path.push(g);
+                },
+                None => {
+                    if let Some(g) = path.pop() {
+                        let dir = g.0;
+
+                        self.robot.go(dir.rev());
+                        self.map.go(dir.rev());
+                    } else {
+                        break;
+                    }
+                }
             };
         }
 
         true
     }
 
-    fn decide(&self) -> Option<dir::Dir> {
+    fn decide(&self) -> Option<(dir::Dir, usize)> {
+        let mut possible = 0;
+        let mut dir = None;
+
         for (i, s) in self.map.explorable().iter().enumerate() {
             if *s {
-                return Some(dir::Dir::new( (i+1) as i64));
+                dir = Some(dir::Dir::new( (i+1) as i64));
+                possible += 1;
             }
         }
 
-        None
+        match dir {
+            Some(d) => Some( (d, possible) ),
+            None => None
+        }
     }
 
 }

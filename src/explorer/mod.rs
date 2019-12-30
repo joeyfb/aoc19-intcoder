@@ -13,7 +13,7 @@ impl<'a> Explorer<'a> {
     pub fn new(icoder : &mut Intcode) -> Explorer {
         Explorer {
             robot: robot::Robot::new(icoder),
-            map: map::Map::new(60),
+            map: map::Map::new(50),
         }
     }
     
@@ -21,7 +21,7 @@ impl<'a> Explorer<'a> {
         self.map.print();
     }
 
-    pub fn run(&mut self, oxy_trace: bool) -> bool {
+    pub fn run(&mut self, oxy_trace: bool) -> usize {
         let mut path = Vec::new();
         let mut longest = 0;
         let mut has_reset = false;
@@ -36,29 +36,27 @@ impl<'a> Explorer<'a> {
             }
 
             // go a new way if we can
-            if let Some(g) = self.decide() {
-                let dir = g.0;
-
+            if let Some(dir) = self.decide() {
                 let tile = self.robot.go(dir);
                 self.map.go(dir);
-                path.push(g);
+                path.push(dir);
 
                 match tile {
                     tile::Tile::Oxy => {
-                        if ! has_reset {
+                        if oxy_trace && ! has_reset {
                             self.map.reset();
                             path = Vec::new();
                             longest = 0;
                             has_reset = true;
+                        } else if ! oxy_trace {
+                            return path.len();
                         }
                     },
                     _ => {}
                 };
 
-            // reverse otherwise
-            } else if let Some(g) = path.pop() {
-                let dir = g.0;
-
+            // headback otherwise
+            } else if let Some(dir) = path.pop() {
                 self.robot.go(dir.rev());
                 self.map.go(dir.rev());
 
@@ -68,26 +66,17 @@ impl<'a> Explorer<'a> {
             }
         }
 
-        println!("longest path from start: {}", longest);
-
-        true
+        longest
     }
 
-    fn decide(&self) -> Option<(dir::Dir, usize)> {
-        let mut possible = 0;
-        let mut dir = None;
-
+    fn decide(&self) -> Option<dir::Dir> {
         for (i, s) in self.map.explorable().iter().enumerate() {
             if *s {
-                dir = Some(dir::Dir::new( (i+1) as i64));
-                possible += 1;
+                return Some(dir::Dir::new( (i+1) as i64));
             }
         }
 
-        match dir {
-            Some(d) => Some( (d, possible) ),
-            None => None
-        }
+        None
     }
 
 }

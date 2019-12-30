@@ -41,8 +41,7 @@ impl Space {
 
 pub struct Map {
     map:    Vec<Vec<Space>>,
-    curr:   (usize, usize),
-    oxy:    (usize, usize),
+    curr:   (usize, usize)
 }
 
 impl Map {
@@ -62,8 +61,7 @@ impl Map {
 
         Map {
             map,
-            curr: (size/2, size/2),
-            oxy: (0, 0),
+            curr: (size/2, size/2)
         }
     }
 
@@ -83,15 +81,6 @@ impl Map {
     pub fn set(&mut self, dir: Dir, tile: &Tile) {
         let (x, y) = dir.go(self.curr);
 
-        if self.map[y][x].visited { return };
-
-        match tile {
-            Tile::Oxy => {
-                self.oxy = self.curr;
-            },
-            _ => {}
-        };
-
         if self.map.len() > x && self.map.len() > y {
             self.map[y][x].tile = Some(tile.clone());
         }
@@ -108,8 +97,6 @@ impl Map {
             }
             println!("");
         }
-
-        println!("oxy: {:?}", self.oxy);
     }
 
     pub fn explorable(&self) -> [bool; 4] {

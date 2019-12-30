@@ -9,10 +9,17 @@ mod explorer;
 fn main() -> io::Result<()> {
     let now = Instant::now();
     let prog = read("program.txt")?; 
+
     let mut computer = intcoder::Intcode::new(&prog);
     let mut exp = explorer::Explorer::new(&mut computer);
+    println!("path from start to oxy: {}", exp.run(false));
+    
+    exp.print();
 
-    exp.run(true);
+    let mut computer = intcoder::Intcode::new(&prog);
+    let mut exp = explorer::Explorer::new(&mut computer);
+    println!("longest path from oxy: {}", exp.run(true));
+
     exp.print();
 
     // TIMING
